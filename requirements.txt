@@ -1,2 +1,4 @@
-
+numpy
+matplotlib
 PyQt6
+networkx
