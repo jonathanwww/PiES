@@ -18,4 +18,7 @@ Run the app: python main.py
 
 # Dependencies
 
-- numpy==1.19.0
+numpy
+matplotlib
+PyQt6
+networkx
