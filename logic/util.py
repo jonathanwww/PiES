@@ -43,7 +43,7 @@ def blocking(eq_sys):
     return sccs
 
 
-def blocking(equation_system):
+def blocking_matrix_wip(equation_system):
     variable_names = sorted([var.name for var in equation_system.variables], key=str)
     eq_variables = [sorted(eq.variables, key=str) for eq in equation_system.equations]
     new_eq_variables = [[variable_names.index(var_name) for var_name in eq] for eq in eq_variables]
