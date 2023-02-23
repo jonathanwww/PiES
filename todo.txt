@@ -25,6 +25,6 @@
 # todo: bug: a,b,c, a and c is loop vars but c = a,b. still gets included in block, should thrown an error during blocking
     # fix?: each block must contain equal numbers of var and eqs
 # todo: Plotting
-# todo: Saving state with document, ids, solutions etc
+# todo: find another solution instead of passing around the global namespace
 # todo: clean eq sys functions
 # todo: allow for different solvers based on block size
