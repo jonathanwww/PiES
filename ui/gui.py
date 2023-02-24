@@ -162,20 +162,16 @@ class Editor(QWidget):
                 
                 # color the whole row
                 for j in range(self.variables_table.columnCount()):
-                    color = QColor(0, 0, 0)
                     if not variable.used:
-                        color = QColor(38, 38, 38)
+                        self.variables_table.item(i, j).setBackground(QColor(38, 38, 38, 150))
                     if variable.loop_var and variable.param_var:
-                        color = QColor(110, 90, 90)
-                    self.variables_table.item(i, j).setBackground(color)
+                        self.variables_table.item(i, j).setBackground(QColor(110, 90, 90, 150))
                 
                 # color columns           
                 if variable.loop_var:
-                    color = QColor(109, 115, 108)
-                    self.variables_table.item(i, 5).setBackground(color)
+                    self.variables_table.item(i, 5).setBackground(QColor(109, 115, 108, 150))
                 if variable.param_var:
-                    color = QColor(109, 110, 98)
-                    self.variables_table.item(i, 6).setBackground(color)
+                    self.variables_table.item(i, 6).setBackground(QColor(109, 110, 98, 150))
                         
         except Exception:
             error_message = "Updating eq sys failed with message: " + traceback.format_exc()
