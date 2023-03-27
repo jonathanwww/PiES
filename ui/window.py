@@ -2,7 +2,7 @@ import traceback
 
 from PyQt6 import QtWidgets
 from PyQt6.QtCore import Qt 
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QMainWindow, QWidget
 
 from logic.equationsystem import EquationSystem, solve
 from logic.util import blocking
@@ -10,69 +10,26 @@ from logic.util import blocking
 import re
 from PyQt6.QtGui import QTextCharFormat, QSyntaxHighlighter, QColor, QFont
 
+from ui.editor import PythonEditor, EquationEditor, ConsoleEditor
+from ui.table import VariableTable
 
-class EquationHighlighter(QSyntaxHighlighter):
-    def __init__(self, document):
-        super().__init__(document)
+#class Window(QMainWindow):
+#    def __init__(self, eqsys: EquationSystem, parent = None, flags = Qt.WindowType.Window):
+#        super().__init__(parent, flags)
 
-        self.keyword_format = QTextCharFormat()
-        self.keyword_format.setForeground(QColor(93, 179, 231))
-        keywords = ['=', 'gen_eqs']
-        self.keyword_patterns = [re.compile(r""+keyword) for keyword in keywords]
-
-        self.red_format = QTextCharFormat()
-        self.red_format.setBackground(QColor(230, 101, 101))
-        self.red_pattern = re.compile(r"^[^=]+$|^=|=$")
-
-    def highlightBlock(self, text):
-        for pattern in self.keyword_patterns:
-            for match in pattern.finditer(text):
-                self.setFormat(match.start(), match.end() - match.start(), self.keyword_format)
-
-        for match in self.red_pattern.finditer(text):
-            self.setFormat(match.start(), match.end() - match.start(), self.red_format)
-
-
-class PythonHighlighter(QSyntaxHighlighter):
-    def __init__(self, document):
-        super().__init__(document)
-
-        self.keyword_format = QTextCharFormat()
-        self.keyword_format.setForeground(QColor(93, 179, 231))
-        keywords = ["and", "as", "assert", "break", "class", "continue", "def", "del", "elif", "else", "except", "False", "finally", "for", "from", "global", "if", "import", "in", "is", "lambda", "None", "not", "or", "pass", "raise", "return", "True", "try", "while", "with", "yield"]
-        self.keyword_patterns = [re.compile(r"\b" + keyword + r"\b") for keyword in keywords]
-
-        self.patterns = []
-
-    def highlightBlock(self, text):
-        for pattern in self.keyword_patterns:
-            for match in pattern.finditer(text):
-                self.setFormat(match.start(), match.end() - match.start(), self.keyword_format)
-
-
-class Editor(QWidget):
+class Window(QWidget):
     def __init__(self, eqsys: EquationSystem):
-        super().__init__()
+        super().__init__(None)
         self.eqsys = eqsys
         self.status_label = QtWidgets.QLabel(self)
 
-        self.python_edit = QtWidgets.QTextEdit(self)
-        self.python_edit_highlighter = PythonHighlighter(self.python_edit.document())
+        self.python_edit = PythonEditor(self)        
+        self.text_edit = EquationEditor(self)
+        self.console_output = ConsoleEditor(self)
         
-        self.text_edit = QtWidgets.QTextEdit(self)
-        self.text_edit_highlighter = EquationHighlighter(self.text_edit.document())
-        
-        self.console_output = QtWidgets.QTextEdit(self)
-        self.console_output.setReadOnly(True)
-        
-        self.variables_table = QtWidgets.QTableWidget(self)
-        self.variables_table.setColumnCount(7)
-        self.variables_table.setHorizontalHeaderLabels(["Name", "x0", "Lower b", "Upper b", "Used", "Loopvar", "Paramvar"])
+        self.variables_table = VariableTable(self)
         self.variables_table.cellChanged.connect(self.update_variable)
         self.variables_table.horizontalHeader().sectionClicked.connect(self.sort_table)
-
-        for col in range(self.variables_table.columnCount()):
-            self.variables_table.setColumnWidth(col, 65)
 
         self.solve_button = QtWidgets.QPushButton('Solve', self)
         self.solve_button.clicked.connect(self.solve_eqsys)
@@ -109,21 +66,8 @@ class Editor(QWidget):
 
         self.layout.setRowStretch(0, 2)
         self.layout.setRowStretch(1, 1)
-
-        font = QFont("monaco", 12)
-        self.python_edit.setFont(font)
-        self.text_edit.setFont(font)
-        self.console_output.setFont(font)
-        
-        self.initUI()
         self.sync_gui_and_eqsys()
-        
-    def initUI(self):
-        self.python_edit.setText("from numpy import cos, sin\nfrom CoolProp.CoolProp import PropsSI\n\ndef test(x,y,str_input):\n return x+y if str_input == 'add' else 0")
-        self.text_edit.setText("# Example of equation generator\ngen_eqs([f'x_{i}+cos(5*{i})=12*{i}+w' for i in range(10)])\n\n# Example of loop variable\na=loop_var([i*2+1 for i in range(1)])\ny=loop_var([i+1 for i in range(1)])\n\nx = 6*w \nz = x*y \nw = z*x+test(x,z,'add') \nb = 4*a \nc = a*b")
-        self.setGeometry(1350, 800, 1350, 750)
-        self.setWindowTitle('freese')
-        self.show()
+
         
     def sort_table(self, column):
         self.variables_table.sortItems(column)
