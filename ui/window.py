@@ -29,7 +29,6 @@ class Window(QWidget):
         
         self.variables_table = VariableTable(self)
         self.variables_table.cellChanged.connect(self.update_variable)
-        self.variables_table.horizontalHeader().sectionClicked.connect(self.sort_table)
 
         self.solve_button = QtWidgets.QPushButton('Solve', self)
         self.solve_button.clicked.connect(self.solve_eqsys)
@@ -67,10 +66,6 @@ class Window(QWidget):
         self.layout.setRowStretch(0, 2)
         self.layout.setRowStretch(1, 1)
         self.sync_gui_and_eqsys()
-
-        
-    def sort_table(self, column):
-        self.variables_table.sortItems(column)
         
     def keyReleaseEvent(self, e):
         if e.key() == Qt.Key.Key_Return:
