@@ -1,5 +1,6 @@
 import traceback
 import logging
+import os
 
 from pathlib import Path
 
@@ -75,6 +76,8 @@ class Window(QMainWindow):
         self._createActions()
         self._createMenu()
 
+        self.lastDir = str(Path.home())
+
         self.sync_gui_and_eqsys()
 
     def _createActions(self):
@@ -94,18 +97,18 @@ class Window(QMainWindow):
         fileMenu.addAction(self.exitAction)
 
     def saveTextDialog(self):
-        home_dir = str(Path.home())
-        selectedFile = QFileDialog.getSaveFileName(self, self.tr("Save file"), home_dir, self.tr("JSON files (*.json)"))
+        selectedFile = QFileDialog.getSaveFileName(self, self.tr("Save file"), self.lastDir, self.tr("JSON files (*.json)"))
         if selectedFile[0]:
             filename = selectedFile[0]
             self.saveTextToJson(filename)        
+            self.lastDir = os.path.dirname(filename)
 
     def loadTextDialog(self):
-        home_dir = str(Path.home())
-        selectedFile = QFileDialog.getOpenFileName(self, self.tr("Open file"), home_dir, self.tr("JSON files (*.json)"))
+        selectedFile = QFileDialog.getOpenFileName(self, self.tr("Open file"), self.lastDir, self.tr("JSON files (*.json)"))
         if selectedFile[0]:
             filename = selectedFile[0]
             self.loadTextFromJson(filename)
+            self.lastDir = os.path.dirname(filename)
 
     def saveTextToJson(self, path: str):
         dataDict = {}
