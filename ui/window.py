@@ -1,8 +1,12 @@
 import traceback
+import logging
+
+from pathlib import Path
 
 from PyQt6 import QtWidgets
-from PyQt6.QtCore import Qt 
-from PyQt6.QtWidgets import QMainWindow, QWidget
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QMainWindow, QFileDialog, QMenu, QWidget, QStatusBar
+from PyQt6.QtGui import QAction
 
 from logic.equationsystem import EquationSystem, solve
 from logic.util import blocking
@@ -13,15 +17,15 @@ from PyQt6.QtGui import QTextCharFormat, QSyntaxHighlighter, QColor, QFont
 from ui.editor import PythonEditor, EquationEditor, ConsoleEditor
 from ui.table import VariableTable
 
-#class Window(QMainWindow):
-#    def __init__(self, eqsys: EquationSystem, parent = None, flags = Qt.WindowType.Window):
-#        super().__init__(parent, flags)
+import json
 
-class Window(QWidget):
-    def __init__(self, eqsys: EquationSystem):
-        super().__init__(None)
+class Window(QMainWindow):
+    def __init__(self, eqsys: EquationSystem, parent = None, flags = Qt.WindowType.Window):
+        super().__init__(parent, flags)
         self.eqsys = eqsys
-        self.status_label = QtWidgets.QLabel(self)
+
+        self.statusBar = QStatusBar(self)
+        self.setStatusBar(self.statusBar)
 
         self.python_edit = PythonEditor(self)        
         self.text_edit = EquationEditor(self)
@@ -45,31 +49,83 @@ class Window(QWidget):
         self.clear_console_button = QtWidgets.QPushButton('Clear console', self)
         self.clear_console_button.clicked.connect(self.clear_console)
         
-        self.layout = QtWidgets.QGridLayout(self)
-        self.layout.addWidget(self.python_edit, 0, 0)
-        self.layout.addWidget(self.text_edit, 0, 1)
-        self.layout.addWidget(self.variables_table, 0, 2)
+        layout = QtWidgets.QGridLayout()
+        layout.addWidget(self.python_edit, 0, 0)
+        layout.addWidget(self.text_edit, 0, 1)
+        layout.addWidget(self.variables_table, 0, 2)
+        layout.addWidget(self.console_output, 1, 0, 1, 3)
         
-        self.layout.addWidget(self.console_output, 1, 0, 1, 3)
+        layout.addWidget(self.remove_unused_vars_button, 2, 0)
+        layout.addWidget(self.show_all_eqs_button, 3, 0)
+        layout.addWidget(self.show_blocks_button, 4, 0)
+        layout.addWidget(self.solve_button, 2, 1)
+        layout.addWidget(self.clear_console_button, 3, 1)
         
-        self.layout.addWidget(self.remove_unused_vars_button, 2, 0)
-        self.layout.addWidget(self.show_all_eqs_button, 3, 0)
-        self.layout.addWidget(self.show_blocks_button, 4, 0)
-        self.layout.addWidget(self.solve_button, 2, 1)
-        self.layout.addWidget(self.clear_console_button, 3, 1)
-        self.layout.addWidget(self.status_label, 4, 1)
-        
-        self.layout.setColumnStretch(0, 2)
-        self.layout.setColumnStretch(1, 3)
-        self.layout.setColumnStretch(2, 3)
+        layout.setColumnStretch(0, 2)
+        layout.setColumnStretch(1, 3)
+        layout.setColumnStretch(2, 3)
 
-        self.layout.setRowStretch(0, 2)
-        self.layout.setRowStretch(1, 1)
+        layout.setRowStretch(0, 2)
+        layout.setRowStretch(1, 1)
+
+        widget = QWidget()
+        widget.setLayout(layout)
+        self.setCentralWidget(widget)
+
+        self._createActions()
+        self._createMenu()
+
         self.sync_gui_and_eqsys()
+
+    def _createActions(self):
+        self.openAction = QAction("&Open", self)
+        self.openAction.triggered.connect(self.loadTextDialog)
+        self.saveAction = QAction("&Save", self)
+        self.saveAction.triggered.connect(self.saveTextDialog)
+        self.exitAction = QAction("&Exit", self)
+        self.exitAction.triggered.connect(self.close)
+    
+    def _createMenu(self):
+        menuBar = self.menuBar()
+        fileMenu = QMenu("&File", self)
+        menuBar.addMenu(fileMenu)
+        fileMenu.addAction(self.openAction)
+        fileMenu.addAction(self.saveAction)
+        fileMenu.addAction(self.exitAction)
+
+    def saveTextDialog(self):
+        home_dir = str(Path.home())
+        selectedFile = QFileDialog.getSaveFileName(self, self.tr("Save file"), home_dir, self.tr("JSON files (*.json)"))
+        if selectedFile[0]:
+            filename = selectedFile[0]
+            self.saveTextToJson(filename)        
+
+    def loadTextDialog(self):
+        home_dir = str(Path.home())
+        selectedFile = QFileDialog.getOpenFileName(self, self.tr("Open file"), home_dir, self.tr("JSON files (*.json)"))
+        if selectedFile[0]:
+            filename = selectedFile[0]
+            self.loadTextFromJson(filename)
+
+    def saveTextToJson(self, path: str):
+        dataDict = {}
+        dataDict["pythonStr"] = self.python_edit.toPlainText()
+        dataDict["equationStr"] = self.text_edit.toPlainText()
+        with open(path, "w") as outfile:
+            json.dump(dataDict, outfile, sort_keys=True, indent=4)
+
+    def loadTextFromJson(self, path: str):
+        dataDict = {}
+        with open(path, "r") as infile:
+            dataDict = dict(json.load(infile))
+        self.python_edit.setPlainText(dataDict.get("pythonStr", ""))
+        self.text_edit.setPlainText(dataDict.get("equationStr", ""))
         
     def keyReleaseEvent(self, e):
         if e.key() == Qt.Key.Key_Return:
             self.sync_gui_and_eqsys()
+        # Respect the normal behaviour
+        super().keyReleaseEvent(e)
         
     def sync_gui_and_eqsys(self):  # syncs the equation system object with the ui input
         try:
@@ -82,7 +138,7 @@ class Window(QWidget):
             
             # update status bar
             vars_in_use = len([var for var in self.eqsys.variables if var.used])
-            self.status_label.setText(f'{"[✓]" if vars_in_use == len(self.eqsys.equations) else "[x]"} '
+            self.statusBar.showMessage(f'{"[✓]" if vars_in_use == len(self.eqsys.equations) else "[x]"} '
                                       f'Variables in use: {vars_in_use} - Equations: {len(self.eqsys.equations)}')
             
             # update var window
@@ -117,7 +173,7 @@ class Window(QWidget):
             self.update_console_output(error_message)
     
     def clear_console(self):
-        self.console_output.setPlainText("")
+        self.console_output.clear()
         
     def update_console_output(self, output_text):
         old_output = self.console_output.toPlainText() + '\n\n'
