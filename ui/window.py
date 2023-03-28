@@ -1,8 +1,13 @@
 import traceback
+import logging
+import os
+
+from pathlib import Path
 
 from PyQt6 import QtWidgets
-from PyQt6.QtCore import Qt 
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QMainWindow, QFileDialog, QMenu, QWidget, QStatusBar
+from PyQt6.QtGui import QAction
 
 from logic.equationsystem import EquationSystem, solve
 from logic.util import blocking
@@ -10,69 +15,25 @@ from logic.util import blocking
 import re
 from PyQt6.QtGui import QTextCharFormat, QSyntaxHighlighter, QColor, QFont
 
+from ui.editor import PythonEditor, EquationEditor, ConsoleEditor
+from ui.table import VariableTable
 
-class EquationHighlighter(QSyntaxHighlighter):
-    def __init__(self, document):
-        super().__init__(document)
+import json
 
-        self.keyword_format = QTextCharFormat()
-        self.keyword_format.setForeground(QColor(93, 179, 231))
-        keywords = ['=', 'gen_eqs']
-        self.keyword_patterns = [re.compile(r""+keyword) for keyword in keywords]
-
-        self.red_format = QTextCharFormat()
-        self.red_format.setBackground(QColor(230, 101, 101))
-        self.red_pattern = re.compile(r"^[^=]+$|^=|=$")
-
-    def highlightBlock(self, text):
-        for pattern in self.keyword_patterns:
-            for match in pattern.finditer(text):
-                self.setFormat(match.start(), match.end() - match.start(), self.keyword_format)
-
-        for match in self.red_pattern.finditer(text):
-            self.setFormat(match.start(), match.end() - match.start(), self.red_format)
-
-
-class PythonHighlighter(QSyntaxHighlighter):
-    def __init__(self, document):
-        super().__init__(document)
-
-        self.keyword_format = QTextCharFormat()
-        self.keyword_format.setForeground(QColor(93, 179, 231))
-        keywords = ["and", "as", "assert", "break", "class", "continue", "def", "del", "elif", "else", "except", "False", "finally", "for", "from", "global", "if", "import", "in", "is", "lambda", "None", "not", "or", "pass", "raise", "return", "True", "try", "while", "with", "yield"]
-        self.keyword_patterns = [re.compile(r"\b" + keyword + r"\b") for keyword in keywords]
-
-        self.patterns = []
-
-    def highlightBlock(self, text):
-        for pattern in self.keyword_patterns:
-            for match in pattern.finditer(text):
-                self.setFormat(match.start(), match.end() - match.start(), self.keyword_format)
-
-
-class Editor(QWidget):
-    def __init__(self, eqsys: EquationSystem):
-        super().__init__()
+class Window(QMainWindow):
+    def __init__(self, eqsys: EquationSystem, parent = None, flags = Qt.WindowType.Window):
+        super().__init__(parent, flags)
         self.eqsys = eqsys
-        self.status_label = QtWidgets.QLabel(self)
 
-        self.python_edit = QtWidgets.QTextEdit(self)
-        self.python_edit_highlighter = PythonHighlighter(self.python_edit.document())
+        self.statusBar = QStatusBar(self)
+        self.setStatusBar(self.statusBar)
+
+        self.python_edit = PythonEditor(self)        
+        self.text_edit = EquationEditor(self)
+        self.console_output = ConsoleEditor(self)
         
-        self.text_edit = QtWidgets.QTextEdit(self)
-        self.text_edit_highlighter = EquationHighlighter(self.text_edit.document())
-        
-        self.console_output = QtWidgets.QTextEdit(self)
-        self.console_output.setReadOnly(True)
-        
-        self.variables_table = QtWidgets.QTableWidget(self)
-        self.variables_table.setColumnCount(7)
-        self.variables_table.setHorizontalHeaderLabels(["Name", "x0", "Lower b", "Upper b", "Used", "Loopvar", "Paramvar"])
+        self.variables_table = VariableTable(self)
         self.variables_table.cellChanged.connect(self.update_variable)
-        self.variables_table.horizontalHeader().sectionClicked.connect(self.sort_table)
-
-        for col in range(self.variables_table.columnCount()):
-            self.variables_table.setColumnWidth(col, 65)
 
         self.solve_button = QtWidgets.QPushButton('Solve', self)
         self.solve_button.clicked.connect(self.solve_eqsys)
@@ -89,48 +50,85 @@ class Editor(QWidget):
         self.clear_console_button = QtWidgets.QPushButton('Clear console', self)
         self.clear_console_button.clicked.connect(self.clear_console)
         
-        self.layout = QtWidgets.QGridLayout(self)
-        self.layout.addWidget(self.python_edit, 0, 0)
-        self.layout.addWidget(self.text_edit, 0, 1)
-        self.layout.addWidget(self.variables_table, 0, 2)
+        layout = QtWidgets.QGridLayout()
+        layout.addWidget(self.python_edit, 0, 0)
+        layout.addWidget(self.text_edit, 0, 1)
+        layout.addWidget(self.variables_table, 0, 2)
+        layout.addWidget(self.console_output, 1, 0, 1, 3)
         
-        self.layout.addWidget(self.console_output, 1, 0, 1, 3)
+        layout.addWidget(self.remove_unused_vars_button, 2, 0)
+        layout.addWidget(self.show_all_eqs_button, 3, 0)
+        layout.addWidget(self.show_blocks_button, 4, 0)
+        layout.addWidget(self.solve_button, 2, 1)
+        layout.addWidget(self.clear_console_button, 3, 1)
         
-        self.layout.addWidget(self.remove_unused_vars_button, 2, 0)
-        self.layout.addWidget(self.show_all_eqs_button, 3, 0)
-        self.layout.addWidget(self.show_blocks_button, 4, 0)
-        self.layout.addWidget(self.solve_button, 2, 1)
-        self.layout.addWidget(self.clear_console_button, 3, 1)
-        self.layout.addWidget(self.status_label, 4, 1)
-        
-        self.layout.setColumnStretch(0, 2)
-        self.layout.setColumnStretch(1, 3)
-        self.layout.setColumnStretch(2, 3)
+        layout.setColumnStretch(0, 2)
+        layout.setColumnStretch(1, 3)
+        layout.setColumnStretch(2, 3)
 
-        self.layout.setRowStretch(0, 2)
-        self.layout.setRowStretch(1, 1)
+        layout.setRowStretch(0, 2)
+        layout.setRowStretch(1, 1)
 
-        font = QFont("monaco", 12)
-        self.python_edit.setFont(font)
-        self.text_edit.setFont(font)
-        self.console_output.setFont(font)
-        
-        self.initUI()
+        widget = QWidget()
+        widget.setLayout(layout)
+        self.setCentralWidget(widget)
+
+        self._createActions()
+        self._createMenu()
+
+        self.lastDir = str(Path.home())
+
         self.sync_gui_and_eqsys()
-        
-    def initUI(self):
-        self.python_edit.setText("from numpy import cos, sin\nfrom CoolProp.CoolProp import PropsSI\n\ndef test(x,y,str_input):\n return x+y if str_input == 'add' else 0")
-        self.text_edit.setText("# Example of equation generator\ngen_eqs([f'x_{i}+cos(5*{i})=12*{i}+w' for i in range(10)])\n\n# Example of loop variable\na=loop_var([i*2+1 for i in range(1)])\ny=loop_var([i+1 for i in range(1)])\n\nx = 6*w \nz = x*y \nw = z*x+test(x,z,'add') \nb = 4*a \nc = a*b")
-        self.setGeometry(1350, 800, 1350, 750)
-        self.setWindowTitle('freese')
-        self.show()
-        
-    def sort_table(self, column):
-        self.variables_table.sortItems(column)
+
+    def _createActions(self):
+        self.openAction = QAction("&Open", self)
+        self.openAction.triggered.connect(self.loadTextDialog)
+        self.saveAction = QAction("&Save", self)
+        self.saveAction.triggered.connect(self.saveTextDialog)
+        self.exitAction = QAction("&Exit", self)
+        self.exitAction.triggered.connect(self.close)
+    
+    def _createMenu(self):
+        menuBar = self.menuBar()
+        fileMenu = QMenu("&File", self)
+        menuBar.addMenu(fileMenu)
+        fileMenu.addAction(self.openAction)
+        fileMenu.addAction(self.saveAction)
+        fileMenu.addAction(self.exitAction)
+
+    def saveTextDialog(self):
+        selectedFile = QFileDialog.getSaveFileName(self, self.tr("Save file"), self.lastDir, self.tr("JSON files (*.json)"))
+        if selectedFile[0]:
+            filename = selectedFile[0]
+            self.saveTextToJson(filename)        
+            self.lastDir = os.path.dirname(filename)
+
+    def loadTextDialog(self):
+        selectedFile = QFileDialog.getOpenFileName(self, self.tr("Open file"), self.lastDir, self.tr("JSON files (*.json)"))
+        if selectedFile[0]:
+            filename = selectedFile[0]
+            self.loadTextFromJson(filename)
+            self.lastDir = os.path.dirname(filename)
+
+    def saveTextToJson(self, path: str):
+        dataDict = {}
+        dataDict["pythonStr"] = self.python_edit.toPlainText()
+        dataDict["equationStr"] = self.text_edit.toPlainText()
+        with open(path, "w") as outfile:
+            json.dump(dataDict, outfile, sort_keys=True, indent=4)
+
+    def loadTextFromJson(self, path: str):
+        dataDict = {}
+        with open(path, "r") as infile:
+            dataDict = dict(json.load(infile))
+        self.python_edit.setPlainText(dataDict.get("pythonStr", ""))
+        self.text_edit.setPlainText(dataDict.get("equationStr", ""))
         
     def keyReleaseEvent(self, e):
         if e.key() == Qt.Key.Key_Return:
             self.sync_gui_and_eqsys()
+        # Respect the normal behaviour
+        super().keyReleaseEvent(e)
         
     def sync_gui_and_eqsys(self):  # syncs the equation system object with the ui input
         try:
@@ -143,7 +141,7 @@ class Editor(QWidget):
             
             # update status bar
             vars_in_use = len([var for var in self.eqsys.variables if var.used])
-            self.status_label.setText(f'{"[✓]" if vars_in_use == len(self.eqsys.equations) else "[x]"} '
+            self.statusBar.showMessage(f'{"[✓]" if vars_in_use == len(self.eqsys.equations) else "[x]"} '
                                       f'Variables in use: {vars_in_use} - Equations: {len(self.eqsys.equations)}')
             
             # update var window
@@ -178,7 +176,7 @@ class Editor(QWidget):
             self.update_console_output(error_message)
     
     def clear_console(self):
-        self.console_output.setPlainText("")
+        self.console_output.clear()
         
     def update_console_output(self, output_text):
         old_output = self.console_output.toPlainText() + '\n\n'
