@@ -14,14 +14,18 @@ def clean_input(x: list) -> list[str]:
     return [create_residual_eq(eq) for eq in no_comments]
 
 
+# Use the machine epsilon to balance the round-off error
+# and the secant error for numerical differentiation
+epsilon_root = np.sqrt(np.finfo(float).eps)
 def jacobian(x, f):
+    xph = x + (epsilon_root * x)
+    dx = xph - x
     n = len(x)
-    eps = 1e-6
     J = np.zeros((n, n))
     for i in range(n):
-        x_eps = x.copy()
-        x_eps[i] += eps
-        J[:, i] = (f(x_eps) - f(x)) / eps
+        x_diff = x.copy()
+        x_diff[i] = xph[i]
+        J[:, i] = (f(x_diff) - f(x)) / dx[i]
     return J
 
 
