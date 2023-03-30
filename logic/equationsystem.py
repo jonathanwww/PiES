@@ -5,9 +5,10 @@ import ast
 from dataclasses import dataclass, field
 import numpy as np
 from numpy import inf
+import logging
 
 from logic.util import blocking, clean_input
-from logic.solvers import newton_raphson
+from logic.solvers import solver_wrapper
 
 
 @dataclass
@@ -153,16 +154,30 @@ def solve(eq_sys: EquationSystem):
 
             # time start
             start_time_solve = time.perf_counter()
-
-            solution = newton_raphson(residual_func=f,
+            solution = solver_wrapper(residual_func=f,
                                       initial_guesses=x[var_idx],
                                       bounds=(lb[var_idx], ub[var_idx]),
                                       tol=1e-10,
                                       max_iter=500,
-                                      verbose=False)
+                                      verbose=False,
+                                      method = 0)
             # Time end
             end_time_solve = time.perf_counter()
             solver_time.append((end_time_solve - start_time_solve) * 1000)
+
+            # # time start
+            # start_time_solve = time.perf_counter()
+            # _solution = solver_wrapper(residual_func=f,
+            #                           initial_guesses=x[var_idx],
+            #                           bounds=(lb[var_idx], ub[var_idx]),
+            #                           tol=1e-10,
+            #                           max_iter=500,
+            #                           verbose=False,
+            #                           method = 1)
+            # # Time end
+            # end_time_solve = time.perf_counter()
+            # scipy_time = (end_time_solve - start_time_solve) * 1000
+            # logging.debug("Internal solver took %f ms and SciPy solver took %f ms", solver_time[-1], scipy_time)
 
             # update x with results for this block, so we can solve next block
             x[var_idx] = solution

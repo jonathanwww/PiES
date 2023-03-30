@@ -1,4 +1,6 @@
 numpy
 matplotlib
+scipy
 PyQt6
 networkx
+coolprop
