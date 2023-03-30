@@ -6,12 +6,13 @@ authors = ["Your Name <you@example.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.8,<3.12"
 numpy = "^1.24.2"
 matplotlib = "^3.7.1"
 pyqt6 = "^6.4.2"
 networkx = "^3.0"
 coolprop = "^6.4.3.post1"
+scipy = "^1.10.1"
 
 
 [build-system]
