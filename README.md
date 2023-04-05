@@ -15,10 +15,3 @@ pip install -r requirements.txt
 
 # Usage
 Run the app: python main.py
-
-# Dependencies
-
-numpy
-matplotlib
-PyQt6
-networkx
