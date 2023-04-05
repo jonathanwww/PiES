@@ -162,7 +162,7 @@ def blocking(eqsys: EquationSystem) -> list:
 
 
 def solve(eqsys: EquationSystem) -> dict:
-    settings = {'tolerance': 1e-10, 'max_iter': 500, 'verbose': False, 'method': 1}
+    settings = {'tolerance': 1e-10, 'max_iter': 500, 'verbose': False, 'method': 0}
     results = {}
 
     grid = eqsys.create_loopvar_grid()
