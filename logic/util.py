@@ -1,17 +1,27 @@
-import networkx as nx
+import re
 import numpy as np
-import matplotlib.pyplot as plt
+import ast
 
 
-def create_residual_eq(x) -> str:
-    eq = x.split('=')
-    return eq[0] if eq[1] == '0' else f"{eq[0]}-({eq[1]})"
+def create_residual(eq_str: str) -> str:
+    lhs, rhs = eq_str.split('=')
+    return f"{lhs} - ({rhs})"
 
 
-def clean_input(x: list) -> list[str]:
-    cleaned = list(filter(None, x))  # remove empty entries in case of redudandant newlines
+def clean_input(x: str) -> list[str]:
+    str_list = x.split('\n')
+
+    # removes spaces, except inside [..]
+    regex = r'\s+(?=[^\[\]]*(?:\[|$))'
+    removed_spaces = [re.sub(regex, '', string) for string in str_list]
+
+    # remove empty lines
+    cleaned = list(filter(None, removed_spaces))
+
+    # remove comments
     no_comments = list(filter(lambda line: not line.startswith('#'), cleaned))
-    return [create_residual_eq(eq) for eq in no_comments]
+
+    return no_comments
 
 
 # Use the machine epsilon to balance the round-off error
@@ -29,103 +39,69 @@ def jacobian(x, f):
     return J
 
 
-def blocking(eq_sys):
-    G = nx.DiGraph()
-    for i, eq in enumerate(eq_sys.equations):
-        G.add_node(i)
-        for var in eq.variables:
-            for j, eq2 in enumerate(eq_sys.equations):
-                if var in eq2.variables:
-                    G.add_edge(j, i)
+def find_all_variables(eq: str) -> list[str]:
+    lhs, rhs = eq.split('=')
 
-    sccs = [list(c) for c in nx.strongly_connected_components(G)]
-    sccs.reverse()
-    # match = {i: eq_sys.variables[i].name for i in range(len(eq_sys.variables))}
+    # loop var case, only one variable which is on lhs    
+    if 'loop_var' in rhs:
+        string = lhs
+    # else look over the whole eq string
+    else:
+        string = create_residual(eq)
 
-    #print(blocking2(eq_sys))  # todo: debug
+    variables = [i.id for i in ast.walk(ast.parse(string)) if isinstance(i, ast.Name)]
 
-    return sccs
+    return list(set(variables))
 
 
-def blocking_matrix_wip(equation_system):
-    variable_names = sorted([var.name for var in equation_system.variables], key=str)
-    eq_variables = [sorted(eq.variables, key=str) for eq in equation_system.equations]
-    new_eq_variables = [[variable_names.index(var_name) for var_name in eq] for eq in eq_variables]
-    n = len(variable_names)
-    
-    # incidence matrix
-    incidence_matrix = np.zeros((n, n), dtype=int)    
-    for i, var_list in enumerate(new_eq_variables):   
-        incidence_matrix[i, var_list] = 1
+def run_equation_generators(eq_strings: list[str]):
+    """
+    Works by calling evaling the eq_gen() function.
+    Generated equations are inserted in the place of generators.
+    :param eq_strings: a list of equations in string format
+    :return: original list of strs (+) generated eqs (-) the eq generators
+    """
 
-    # incidence to adjacency matrix
-    adjacency_matrix = (np.dot(incidence_matrix, incidence_matrix.T) > 0).astype(int)
-    np.fill_diagonal(adjacency_matrix, 0)  # no self reference
-    
-    # adjacency matrix to directed adjacency matrix
-    directed_adjacency_matrix = np.zeros((n, n), dtype=int)
-    for i in range(n):
-        for j in range(n):
-            if adjacency_matrix[i][j] == 1 and incidence_matrix[j][i] == 0:
-                directed_adjacency_matrix[i][j] = 1
+    # Create a new list to store the final list of equations
+    final_eq_strings = []
 
-    # Digraph from adjacency matrix
-    T = nx.from_numpy_matrix(directed_adjacency_matrix, create_using=nx.DiGraph)
-
-    # Get strongly connected components
-    sccs = [list(c) for c in nx.strongly_connected_components(T)]
-    sccs.reverse()
-    
-    return sccs
-        
-
-def blocking2(eq_sys) -> np.array:
-    n = len(eq_sys.equations)
-    
-    G = nx.DiGraph()
-    G.add_nodes_from(list(range(n)))
-    
-    checked_vars = []
-    
-    for _ in range(n):
-        param_eqs = [(eq_sys.equations.index(eq), eq.variables) for eq in eq_sys.equations
-                     if len(set(eq.variables) - set(checked_vars)) == 1]
-        
-        if param_eqs:
-            eq_id, var_name = param_eqs[0][0], param_eqs[0][1][0]  # just pick first entry in the param eqs list
-            edges = [(eq_id, eq_sys.equations.index(eq)) for eq in eq_sys.equations 
-                     if var_name in eq.variables  # if in
-                     and var_name != eq.variables[0]  # no reflexiv  
-                     and eq.variables[0] not in checked_vars]  # so we don't get it both ways
-            G.add_edges_from(edges)
-            checked_vars.append(var_name)
-
-            #print('parameter eqs (eq_num, var_name):', param_eqs)
-            #print('currenter iter (eq_num, var_name):', eq_id, var_name)
-            #print('edges to be added', edges, '\n\n')
+    for s in eq_strings:
+        if "gen_eqs" in s:
+            # Generate equations using eval and extend the final list with the generated equations
+            final_eq_strings.extend(eval(s))
         else:
-            pass
-            #print('no param left')
-            # else pick a random variable and add bi-edges between all eqs
-            # actually it is just all else that needs adding
-    
-    nx.draw_networkx(G)
-    plt.savefig("testG.png")
-    
-    sccs = [list(c) for c in nx.strongly_connected_components(G)]
-    return sccs.reverse()
+            # Append the string to the final list as is, without generating any equations
+            final_eq_strings.append(s)
+
+    return final_eq_strings
 
 
-    # variable_names = sorted([var.name for var in eq_sys.variables], key=str)  
-    #G = nx.Graph()
-#
-    ## Add nodes to graph
-    #G.add_nodes_from(variable_names, bipartite=0)
-    #G.add_nodes_from(equation_numbers, bipartite=1)
-#
-    ## Add edges to graph
-    #for eq_num, eq in enumerate(eq_sys.equations):
-    #    for var in eq.variables:
-    #        G.add_edge(eq_num, var)
-    ### 
+# Helper functions for the loop_var/gen_eqs functionality
+def loop_var(input_arg) -> list[float or int]:
+    try:
+        # Check if the input is a list comprehension and execute it
+        result = eval(str(input_arg))
+        if isinstance(result, list):
+            return result
+    except (SyntaxError, NameError, TypeError):
+        pass
 
+    # Else check if it's a list
+    if isinstance(input_arg, list):
+        return input_arg
+
+    # If the input is neither a list nor a list comprehension, raise a TypeError
+    raise TypeError("Input must for loop_var() be a list or a list comprehension")
+
+
+def gen_eqs(input_arg) -> list[str]:
+    try:
+        # Check if the input is a list comprehension and execute it
+        result = eval(str(input_arg))
+        if isinstance(result, list):
+            return result
+    except (SyntaxError, NameError, TypeError):
+        pass
+
+    # If the input is neither a list nor a list comprehension, raise a TypeError
+    raise TypeError("Input must for eq_gen() be a list comprehension")

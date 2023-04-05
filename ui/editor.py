@@ -11,7 +11,7 @@ class BaseEditor(QTextEdit):
         super().__init__(parent)
         # Apply some basic formatting
         textFont = QFont()
-        textFont.setFamily("monospace [Consolas]")
+        textFont.setFamily("Courier")
         textFont.setFixedPitch(True)
         textFont.setStyleHint(QFont.StyleHint.TypeWriter)
         self.setCurrentFont(textFont)

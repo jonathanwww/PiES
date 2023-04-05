@@ -4,6 +4,7 @@ import scipy.optimize as sio
 
 from logic.util import jacobian
 
+
 # Use a method selector to enable different solvers for debugging
 # method = -1: compare SciPy least squares and the internal solver
 # method =  0: use the internal solver (default)
