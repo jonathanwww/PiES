@@ -187,8 +187,8 @@ def solve(eqsys: EquationSystem) -> dict:
 
             # get variables in the current block
             block_vars = list(set([var for eq in block_eqs for var in eq.variables]))
-            solved_vars = [var for var in block_vars if X[var]]
-            unsolved_vars = [var for var in block_vars if not X[var]]
+            solved_vars = [var for var in block_vars if X[var] is not None]
+            unsolved_vars = [var for var in block_vars if X[var] is None]
 
             # todo: add a check if num of unsolved == 1
             # block is an eq with a loop/param var
