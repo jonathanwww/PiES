@@ -1,30 +1,9 @@
-# todo: insert parameter vars in solve before solving
-# todo: should there be a recursive check for param var? loop is also a param var
-    # is a loop var not always a param var?
-    
-# todo: finish newton-raphson 
-# todo: finish blocking
-# todo: jacobian on incidence matrix
-# todo: avoid having to compare with unused vars in solve func
-# todo: multi process on solving grids
+TODO
+faster evaluation than eval, numexpr
+multi process on solving grids
+add rules for syntax highlighting for eq window and python window. Perhaps based on the validation system
 
-# todo: add save/load etc
-# todo: add settings button for solver
-# todo: temp fix loop_var_eqs system in update eqsys and solve
-
-# todo: add rules for syntax highlighting for eq window and python window
-# todo: perhaps add a system which checks ex: if param var and loop var: throw error.
-# todo: make show blocks show the equation and the equation number
-
-# todo: pot bug: what happens if we have an eq gen whick makes a var*0? can we get eq!=vars situation then?
-# todo: fix double imports
-# todo: it now _sync_eqs first, check that it doesnt cause any bugs syncing before vars
-# todo: bug what to do if param and loop var defined at the same time? a = 5, a = loopvar[]
-# todo: check for var name already existing in namespace when syncing
-# todo: bug if inputting var in python window which is already created as var object: x=10 ex
-# todo: bug: a,b,c, a and c is loop vars but c = a,b. still gets included in block, should thrown an error during blocking
-    # fix?: each block must contain equal numbers of var and eqs
-# todo: Plotting
-# todo: find another solution instead of passing around the global namespace
-# todo: clean eq sys functions
-# todo: allow for different solvers based on block size
+BUGS
+Loop var/param var after normal var with same name does not override
+a-2=5 makes param var with a-2 name
+find_all_variables will bug if eq contains more than one equal sign
