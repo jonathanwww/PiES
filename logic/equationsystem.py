@@ -221,14 +221,15 @@ def solve(eqsys: EquationSystem) -> dict:
 
 
 def create_residual_func(equations: list[Equation], variables: list[str], solved_variables: dict) -> callable:
-    def residual_func(x: list[float]):
-        # maps the variables to be solved
-        x_dict = dict(zip(variables, x))
-
-        # add the mapping for the solved variables
-        x_dict.update(solved_variables)
-
-        return np.array([eval(eq.residual, globals(), x_dict) for eq in equations])
+    # insert solved values
+    x_dict = {**solved_variables}
+    
+    equation_residuals = np.array([eq.residual for eq in equations])
+    
+    def residual_func(x: np.ndarray):
+        # Update x_dict with new x values
+        x_dict.update(zip(variables, x))
+        return np.vectorize(eval)(equation_residuals, globals(), x_dict)
 
     return residual_func
 
