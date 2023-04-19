@@ -59,7 +59,8 @@ class Equation:
 class EquationSystem:
     equations: list[Equation] = field(init=False, default_factory=list)
     variables: dict[str, Variable] = field(init=False, default_factory=dict)  # [var.name:str, Variable]
-
+    namespace: dict = field(init=False, default_factory=dict)  # contains the namespace from the py window
+    
     def _sync_variables(self, new_variables: list[Variable]) -> None:
         # remove loop / param vars from old list
         self.variables = {name: var for name, var in self.variables.items()
@@ -120,11 +121,13 @@ class EquationSystem:
         return loopvar_grids
 
     def update_eqsys(self, equation_window: str, code_window: str) -> None:
-        # update global namespace with the stuff in the codewindow
-        exec(code_window, globals())
-
+        # set namespace for the eq system to the py window
+        self.namespace = {}
+        exec(code_window, self.namespace)
+        
+        # clean/parse input
         str_list = clean_input(equation_window)
-        equations, variables = parse_input(str_list, globals())
+        equations, variables = parse_input(str_list, self.namespace)
 
         self._sync_variables(variables)
         self._sync_equations(equations)
@@ -162,7 +165,7 @@ def blocking(eqsys: EquationSystem) -> list:
 
 
 def solve(eqsys: EquationSystem) -> dict:
-    settings = {'tolerance': 1e-10, 'max_iter': 500, 'verbose': False, 'method': 0}
+    settings = {'tolerance': 1e-10, 'max_iter': 500, 'verbose': False, 'method': -1}
     results = {}
 
     grid = eqsys.create_loopvar_grid()
@@ -202,7 +205,8 @@ def solve(eqsys: EquationSystem) -> dict:
 
             res_f = create_residual_func(equations=block_eqs,
                                          variables=unsolved_vars,
-                                         solved_variables=solved_map)
+                                         solved_variables=solved_map,
+                                         namespace=eqsys.namespace)
 
             block_results = solver_wrapper(residual_func=res_f,
                                            initial_guesses=x0,
@@ -220,16 +224,17 @@ def solve(eqsys: EquationSystem) -> dict:
     return results
 
 
-def create_residual_func(equations: list[Equation], variables: list[str], solved_variables: dict) -> callable:
+def create_residual_func(equations: list[Equation], variables: list[str], solved_variables: dict, namespace: dict) -> callable:
     # insert solved values
     x_dict = {**solved_variables}
     
-    equation_residuals = np.array([eq.residual for eq in equations])
+    equation_residuals = [eq.residual for eq in equations]
+    compiled = [compile(expression, '<string>', 'eval') for expression in equation_residuals]
     
-    def residual_func(x: np.ndarray):
+    def residual_func(x: np.array) -> np.array:
         # Update x_dict with new x values
         x_dict.update(zip(variables, x))
-        return np.vectorize(eval)(equation_residuals, globals(), x_dict)
+        return np.asarray([eval(eq_str, namespace, x_dict) for eq_str in compiled])
 
     return residual_func
 
