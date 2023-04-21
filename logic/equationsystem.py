@@ -12,7 +12,13 @@ from logic.util import loop_var, gen_eqs  # for evaluating
 @dataclass
 class Variable(ABC):
     name: str
-    used: bool = field(init=False, default=True)
+    unit: str = field(init=False, default='')
+
+    def __add__(self, other):
+        if self.unit == other.unit:
+            return
+        else:
+            raise ValueError(f"Incompatible units for addition: {self.name}:{self.unit} and {other.name}:{other.unit}")
 
 
 @dataclass
@@ -61,27 +67,40 @@ class EquationSystem:
     variables: dict[str, Variable] = field(init=False, default_factory=dict)  # [var.name:str, Variable]
     namespace: dict = field(init=False, default_factory=dict)  # contains the namespace from the py window
     
-    def _sync_variables(self, new_variables: list[Variable]) -> None:
-        # remove loop / param vars from old list
-        self.variables = {name: var for name, var in self.variables.items()
-                          if isinstance(var, NormalVariable)}
-
-        # set all normal variables to un-used
-        for var in self.variables.values():
-            var.used = False
-
-        # add new variables and set used status
-        for var in new_variables:
-            if isinstance(var, (ParameterVariable, LoopVariable)):
-                # add warning for replacing potential normal var? 
-                self.variables[var.name] = var
-
-            # add normal variables or set used if already present
-            if var.name not in self.variables:
-                self.variables[var.name] = var
+    def _sync_variables(self, new_variables: dict[str, Variable]) -> None:
+        """
+        Synchronizes the variable list with new variables.
+        
+        - Adds normal variables from new_variables which are not already present in eq sys.
+        - Removes current param/loop variables and replaces them with the ones in new variables.
+        - Sets used/unused status for all normal variables.
+        
+        :param new_variables: List of unique variables.
+        """
+        new_special_vars = {k: v for k, v in new_variables.items()
+                            if not isinstance(v, NormalVariable)}
+        
+        current_normal_vars = {k: v for k, v in self.variables.items()
+                               if isinstance(v, NormalVariable)
+                               and k not in new_special_vars}  # replace current normal vars with special vars
+        
+        new_normal_vars = {k: v for k, v in new_variables.items()
+                           if isinstance(v, NormalVariable)
+                           and k not in current_normal_vars}  # remove normal vars which are already present in current vars
+        
+        # set used status
+        for var_name, var in current_normal_vars.items():  # new_normal_vars already have used set to true
+            if var_name in new_variables:
+                var.used = True
             else:
-                self.variables[var.name].used = True
+                var.used = False
+        
+        # sort alphabetically
+        unsorted_dict = {**current_normal_vars, **new_normal_vars, **new_special_vars}
+        sorted_dict = {k: v for k, v in sorted(unsorted_dict.items(), key=lambda item: item[1].name)}
 
+        self.variables = sorted_dict
+        
     def _sync_equations(self, new_equations: list[Equation]) -> None:
         self.equations = new_equations
 
@@ -90,7 +109,7 @@ class EquationSystem:
 
     def get_variable_info(self, query_variables: list[str]) -> tuple:
         """
-        Gets x0,lb,ub for a subset of the variables in the equation system
+        Gets x0, lb, ub for a subset of the variables in the equation system
         :param query_variables: list of variable names
         :return: x0, lb, ub for those variables
         """
@@ -243,33 +262,40 @@ def parse_input(str_equations: list[str], namespace: dict) -> tuple:
     str_eqs = run_equation_generators(str_equations)
 
     equations = []
-    variables = {}
-
+    normal_variables = {}
+    special_variables = {}
+    
     for eq in str_eqs:
+        # Find all potential variables in the equation but remove those which are in namespace from pywindow.
+        # such as: functions, or variables which are defined in the pywindow, but used for something in the eq window
         eq_vars = [var for var in find_all_variables(eq)
                    if var not in namespace.keys()]
 
-        # Add variables
         # special cases of variables
         if len(eq_vars) == 1:
+            # check lhs must contain var.
             lhs, rhs = eq.split('=')
-
-            if lhs not in variables:
+            
+            if lhs not in special_variables:
                 if 'loop_var' in rhs:
-                    variables[lhs] = LoopVariable(name=lhs, loop_values=eval(rhs))
+                    # rhs is either a list or a list comprehension. or a variable reference to a list
+                    special_variables[lhs] = LoopVariable(name=lhs, loop_values=eval(rhs))
                 else:
-                    variables[lhs] = ParameterVariable(name=lhs, param_value=rhs)
+                    # just requires the values on rhs, non evaled. simply has an expression which requires eval at solve
+                    special_variables[lhs] = ParameterVariable(name=lhs, param_value=rhs)
 
         # create normal variables
         else:
             for var in eq_vars:
-                if var not in variables:
-                    variables[var] = NormalVariable(name=var)
+                if var not in normal_variables:
+                    normal_variables[var] = NormalVariable(name=var)
 
         # Add equation 
         equations.append(Equation(string=eq, variables=eq_vars))
-
-    return equations, list(variables.values())
+        
+    normal_variables.update(special_variables)  # overrides normal vars with param vars
+    
+    return equations, normal_variables
 
 
 def validate_equation_system(eqsys: EquationSystem):

@@ -141,25 +141,28 @@ class Window(QMainWindow):
             self.eqsys.update_eqsys(text, code)
 
             # update status bar
-            # vars_in_use = len([var for var in self.eqsys.variables if var.used])
-            # self.statusBar.showMessage(f'{"[✓]" if vars_in_use == len(self.eqsys.equations) else "[x]"} '
-            #                           f'Variables in use: {vars_in_use} - Equations: {len(self.eqsys.equations)}')
+            vars_in_use = len([var for var in self.eqsys.variables.values() 
+                               if (isinstance(var, NormalVariable) and var.used) 
+                               or isinstance(var, (LoopVariable, ParameterVariable))])
+            
+            self.statusBar.showMessage(f'{"[✓]" if vars_in_use == len(self.eqsys.equations) else "[x]"} '
+                                      f'Variables in use: {vars_in_use} - Equations: {len(self.eqsys.equations)}')
 
             # update var window
             self.variables_table.clear()
             self.variables_table.setHorizontalHeaderLabels(
-                ["Name", "x0", "Lower b", "Upper b", "Used", "Loopvar", "Paramvar"])  # clear() removes headers
+                ["Name", "x0", "Lower b", "Upper b", "Used", "Loopvar", "Paramvar", "Unit"])  # clear() removes headers
             self.variables_table.setRowCount(len(self.eqsys.variables))
 
             for i, variable in enumerate(self.eqsys.variables.values()):
                 self.variables_table.setItem(i, 0, QtWidgets.QTableWidgetItem(variable.name))
-
+                self.variables_table.setItem(i, 7, QtWidgets.QTableWidgetItem(variable.unit))
+                
                 if isinstance(variable, NormalVariable):
                     self.variables_table.setItem(i, 1, QtWidgets.QTableWidgetItem(str(variable.starting_guess)))
                     self.variables_table.setItem(i, 2, QtWidgets.QTableWidgetItem(str(variable.lower_bound)))
                     self.variables_table.setItem(i, 3, QtWidgets.QTableWidgetItem(str(variable.upper_bound)))
-
-                self.variables_table.setItem(i, 4, QtWidgets.QTableWidgetItem(str(variable.used)))
+                    self.variables_table.setItem(i, 4, QtWidgets.QTableWidgetItem(str(variable.used)))
 
                 if isinstance(variable, LoopVariable):
                     self.variables_table.setItem(i, 5, QtWidgets.QTableWidgetItem(str(variable.loop_values)))
@@ -174,7 +177,7 @@ class Window(QMainWindow):
                 for j in range(self.variables_table.columnCount()):
                     item = self.variables_table.item(i, j)
                     if item is not None:
-                        if not variable.used:
+                        if isinstance(variable, NormalVariable) and not variable.used:
                             item.setBackground(QColor(38, 38, 38, 150))
                         if isinstance(variable, LoopVariable) and isinstance(variable, ParameterVariable):
                             item.setBackground(QColor(110, 90, 90, 150))
@@ -200,6 +203,8 @@ class Window(QMainWindow):
             variable.lower_bound = float(item.text())
         elif col == 3:
             variable.upper_bound = float(item.text())
+        elif col == 7:
+            variable.unit = str(item.text())
 
     def remove_unused_variables(self):
         self.sync_gui_and_eqsys()
