@@ -49,6 +49,9 @@ class Window(QMainWindow):
         self.clear_console_button = QtWidgets.QPushButton('Clear console', self)
         self.clear_console_button.clicked.connect(self.clear_console)
 
+        self.update_guess_values_button = QtWidgets.QPushButton('Update Guess Values', self)
+        self.update_guess_values_button.clicked.connect(self.update_guess_values)
+
         layout = QtWidgets.QGridLayout()
         layout.addWidget(self.python_edit, 0, 0)
         layout.addWidget(self.text_edit, 0, 1)
@@ -60,6 +63,7 @@ class Window(QMainWindow):
         layout.addWidget(self.show_blocks_button, 4, 0)
         layout.addWidget(self.solve_button, 2, 1)
         layout.addWidget(self.clear_console_button, 3, 1)
+        layout.addWidget(self.update_guess_values_button, 4, 1)
 
         layout.setColumnStretch(0, 2)
         layout.setColumnStretch(1, 3)
@@ -232,9 +236,9 @@ class Window(QMainWindow):
     def solve_eqsys(self):
         self.sync_gui_and_eqsys()
         try:
-            solutions = solve(self.eqsys)
+            self.solutions = solve(self.eqsys)
             # {i: (gridvals, solutions)}
-            for entry in solutions.values():
+            for entry in self.solutions.values():
                 self.update_console_output('Loop var vals' + str(entry[0]) + '\nVariable solutions:')
                 post = [k for k in entry[1].items()]
                 self.update_console_output(str(post))
@@ -242,3 +246,14 @@ class Window(QMainWindow):
         except Exception:
             error_message = "Solving eq sys failed with message: " + traceback.format_exc()
             self.update_console_output(error_message)
+
+    def update_guess_values(self):
+        variables = self.eqsys.variables
+        solutions = self.solutions
+        for var in variables:
+            if isinstance(variables[var], NormalVariable):
+                variables[var].starting_guess = solutions[len(solutions)-1][1][var]
+
+        self.sync_gui_and_eqsys()
+
+
