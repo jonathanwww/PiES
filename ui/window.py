@@ -5,7 +5,7 @@ from pathlib import Path
 
 from PyQt6 import QtWidgets
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QMainWindow, QFileDialog, QMenu, QWidget, QStatusBar
+from PyQt6.QtWidgets import QMainWindow, QFileDialog, QMenu, QFrame, QWidget, QStatusBar, QToolBar, QSplitter, QLabel, QVBoxLayout
 from PyQt6.QtGui import QAction
 
 from logic.equationsystem import EquationSystem, NormalVariable, ParameterVariable, LoopVariable, solve, blocking
@@ -17,7 +17,6 @@ from ui.editor import PythonEditor, EquationEditor, ConsoleEditor
 from ui.table import VariableTable
 
 import json
-
 
 class Window(QMainWindow):
     def __init__(self, eqsys: EquationSystem, parent=None, flags=Qt.WindowType.Window):
@@ -34,47 +33,101 @@ class Window(QMainWindow):
         self.variables_table = VariableTable(self)
         self.variables_table.cellChanged.connect(self.update_variable)
 
-        self.solve_button = QtWidgets.QPushButton('Solve', self)
-        self.solve_button.clicked.connect(self.solve_eqsys)
+        self.toolbar = QToolBar("ToolBar", self)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar)
 
-        self.remove_unused_vars_button = QtWidgets.QPushButton('Remove unused variables', self)
-        self.remove_unused_vars_button.clicked.connect(self.remove_unused_variables)
+        toolbar_solve = QAction("Solve", self)
+        toolbar_solve.triggered.connect(self.solve_eqsys)
+        self.toolbar.addAction(toolbar_solve)
 
-        self.show_blocks_button = QtWidgets.QPushButton('Show blocks', self)
-        self.show_blocks_button.clicked.connect(self.show_blocks)
+        toolbar_update_guess_values = QAction("Update Guess Values", self)
+        toolbar_update_guess_values.triggered.connect(self.update_guess_values)
+        self.toolbar.addAction(toolbar_update_guess_values)
 
-        self.show_all_eqs_button = QtWidgets.QPushButton('Show equations', self)
-        self.show_all_eqs_button.clicked.connect(self.show_all_equations)
+        toolbar_remove_unused_variables = QAction("Remove unused variables", self)
+        toolbar_remove_unused_variables.triggered.connect(self.remove_unused_variables)
+        self.toolbar.addAction(toolbar_remove_unused_variables)
 
-        self.clear_console_button = QtWidgets.QPushButton('Clear console', self)
-        self.clear_console_button.clicked.connect(self.clear_console)
+        self.addToolBarBreak()
 
-        self.update_guess_values_button = QtWidgets.QPushButton('Update Guess Values', self)
-        self.update_guess_values_button.clicked.connect(self.update_guess_values)
+        self.toolbar_console = QToolBar("Console toolbar", self)
+        self.addToolBar(Qt.ToolBarArea.BottomToolBarArea, self.toolbar_console)
 
-        layout = QtWidgets.QGridLayout()
-        layout.addWidget(self.python_edit, 0, 0)
-        layout.addWidget(self.text_edit, 0, 1)
-        layout.addWidget(self.variables_table, 0, 2)
-        layout.addWidget(self.console_output, 1, 0, 1, 3)
+        toolbar_clear_console = QAction("Clear Console", self)
+        toolbar_clear_console.triggered.connect(self.clear_console)
+        self.toolbar_console.addAction(toolbar_clear_console)
 
-        layout.addWidget(self.remove_unused_vars_button, 2, 0)
-        layout.addWidget(self.show_all_eqs_button, 3, 0)
-        layout.addWidget(self.show_blocks_button, 4, 0)
-        layout.addWidget(self.solve_button, 2, 1)
-        layout.addWidget(self.clear_console_button, 3, 1)
-        layout.addWidget(self.update_guess_values_button, 4, 1)
+        toolbar_show_equations = QAction("Show Equations", self)
+        toolbar_show_equations.triggered.connect(self.show_all_equations)
+        self.toolbar_console.addAction(toolbar_show_equations)
 
-        layout.setColumnStretch(0, 2)
-        layout.setColumnStretch(1, 3)
-        layout.setColumnStretch(2, 3)
+        toolbar_show_blocks = QAction("Show Blocks", self)
+        toolbar_show_blocks.triggered.connect(self.show_blocks)
+        self.toolbar_console.addAction(toolbar_show_blocks)
 
-        layout.setRowStretch(0, 2)
-        layout.setRowStretch(1, 1)
+        console = QFrame()
+        console.setFrameStyle(QFrame.Shape.Box)
+        label_console = QLabel('Console')
+        label_console.setFixedHeight(25)
+        layout_console = QVBoxLayout()
+        layout_console.addWidget(label_console, 1)
+        layout_console.addWidget(self.console_output, 2)
+        layout_console.addWidget(self.toolbar_console, 3)
+        console.setLayout(layout_console)
+        layout_console.setContentsMargins(5, 0, 5, 0)
 
-        widget = QWidget()
-        widget.setLayout(layout)
-        self.setCentralWidget(widget)
+        python_editor = QFrame()
+        python_editor.setFrameStyle(QFrame.Shape.Box)
+        label_python_editor = QLabel('Python Editor')
+        label_python_editor.setFixedHeight(25)
+        layout_python_editor = QVBoxLayout()
+        layout_python_editor.addWidget(label_python_editor, 1)
+        layout_python_editor.addWidget(self.python_edit, 2)
+        python_editor.setLayout(layout_python_editor)
+        layout_python_editor.setContentsMargins(5, 0, 5, 5)
+
+        text_editor = QFrame()
+        text_editor.setFrameStyle(QFrame.Shape.Box)
+        label_text_editor = QLabel('Equation Editor')
+        label_text_editor.setFixedHeight(25)
+        layout_text_editor = QVBoxLayout()
+        layout_text_editor.addWidget(label_text_editor, 1)
+        layout_text_editor.addWidget(self.text_edit, 2)
+        text_editor.setLayout(layout_text_editor)
+        layout_text_editor.setContentsMargins(5, 0, 5, 5)
+
+        variable_table = QFrame()
+        variable_table.setFrameStyle(QFrame.Shape.Box)
+        label_variable_table = QLabel('Variable Table')
+        label_variable_table.setFixedHeight(25)
+        layout_variable_table = QVBoxLayout()
+        layout_variable_table.addWidget(label_variable_table, 1)
+        layout_variable_table.addWidget(self.variables_table, 2)
+        variable_table.setLayout(layout_variable_table)
+        layout_variable_table.setContentsMargins(5, 0, 5, 5)
+
+        splitter1 = QSplitter(Qt.Orientation.Horizontal) #splits left-right left side includes editors and console  right side variable table
+        splitter2 = QSplitter(Qt.Orientation.Vertical) #splits up-down editors and console
+        splitter3 = QSplitter(Qt.Orientation.Horizontal) #splits left-right between python and equation editors
+
+        # Add editors to splitter 3
+        splitter3.addWidget(python_editor)
+        splitter3.addWidget(text_editor)
+
+        # Add splitter 3 and console to splitter 2
+        splitter2.addWidget(splitter3)
+        splitter2.addWidget(console)
+
+        #add splitter 2 and table to splitter 1
+        splitter1.addWidget(splitter2)
+        splitter1.addWidget(variable_table)
+
+        splitter1.setHandleWidth(5)
+        splitter2.setHandleWidth(5)
+        splitter3.setHandleWidth(5)
+
+        self.setCentralWidget(splitter1)
+        self.setContentsMargins(5, 0, 5, 0)
 
         self._createActions()
         self._createMenu()

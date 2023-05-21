@@ -1,7 +1,7 @@
 import os
 import logging
 
-from PyQt6.QtWidgets import QTextEdit, QFileDialog
+from PyQt6.QtWidgets import QTextEdit, QFileDialog, QFrame
 from PyQt6.QtGui import QFont
 from ui.syntax import PythonHighlighter, EquationHighlighter
 
@@ -17,6 +17,8 @@ class BaseEditor(QTextEdit):
         self.setCurrentFont(textFont)
         # Other variables
         self.highlighter = None
+        # Set frame stye
+        self.setFrameShape(QFrame.Shape.NoFrame)
 
 
     def setTextFromDialog(self):
