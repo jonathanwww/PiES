@@ -1,5 +1,5 @@
-# equation-solver
-Solves equations
+# Python-integrated Equation Solver
+Solves linear and non-linear systems of equations
 
 
 
