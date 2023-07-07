@@ -72,7 +72,7 @@ class SolverInterface(QObject):
 
                 if not unsolved_vars:
                     continue
-                #print(self.py_namespace)
+
                 x0, lb, ub = self.variable_info(unsolved_vars)
                 res_f = self.create_residual_func(block_eqs, unsolved_vars, self.py_namespace, X)
 
