@@ -1,6 +1,4 @@
 import os
-import tempfile
-from PyQt6 import QtCore
 from PyQt6.QtCore import QUrl
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QDialog, QTextEdit, QGroupBox 
 from PyQt6.QtWebEngineWidgets import QWebEngineView
