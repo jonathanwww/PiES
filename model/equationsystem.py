@@ -142,7 +142,7 @@ class EquationSystem(QObject):
         for i, block in enumerate(blocks):
             # Get eqs in block
             block_eqs = [self.equations[eq] for eq in self.equations if self.equations[eq].id in block]
-            print(block_eqs)
+
             # Get variables in the current block
             block_vars = list(set(var for eq in block_eqs for var in eq.variables)) 
             

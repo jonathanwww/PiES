@@ -83,6 +83,7 @@ class ResultsWidget(QWidget):
         self.decimal_combobox = QComboBox()
         for i in range(10):
             self.decimal_combobox.addItem(str(i))
+        self.decimal_combobox.setCurrentIndex(3)  # Set default to 3 digits
         self.decimal_combobox.currentTextChanged.connect(self.update_solver_results)
         self.variable_layout.addWidget(self.decimal_combobox)
         

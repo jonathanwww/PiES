@@ -1,4 +1,5 @@
 import types
+import inspect
 import traceback
 import pint
 from lark import UnexpectedCharacters, UnexpectedToken
@@ -10,7 +11,7 @@ from ui.widgets.equationsystem import EquationSystemWidget
 from ui.widgets.statusbar import StatusBarWidget
 from ui.widgets.plot import InteractiveGraph
 from ui.widgets.editor import PythonEditor, EquationEditor, ConsoleEditor
-from model.solver_interface import Solver
+from model.solver_interface import SolverInterface
 from model.util import Grid
 from model.equationsystem import EquationSystem
 from model.variable import Variable
@@ -25,9 +26,9 @@ class MainController(QObject):
         super().__init__()
         self.model = eqsys
         self.view = view
-        
+
         self.results = ResultsManager()
-        self.solver = Solver(equation_system=self.model, results_manager=self.results)
+        self.solver = SolverInterface(equation_system=self.model, results_manager=self.results)
         
         # set unit registry
         self.ureg = pint.UnitRegistry()
@@ -209,7 +210,7 @@ class MainController(QObject):
         # TODO: we need to only run the last commands if nothing fails
         text = self.python_edit.text()
         code = str(text)
-        namespace = {'__builtins__': __builtins__}
+        namespace = {}
         try:
             compiled_code = compile(code, '<string>', 'exec')
             exec(compiled_code, namespace)
@@ -223,10 +224,12 @@ class MainController(QObject):
             self.view.change_button_text('Output', 'Output (!)')
             self.view.set_light_color(self.view.compile_light, 'red')
             return e
-        else:
-            del namespace['__builtins__']  # remove built-ins from the namespace
-
-        # Look for functions which has units set
+        
+        del namespace['__builtins__']  # remove built-ins from the namespace
+        
+        self.solver.set_namespace(namespace)
+        print(namespace)
+        
         func_units = {}
         
         for name, value in namespace.items():
@@ -240,7 +243,7 @@ class MainController(QObject):
                         self.view.change_button_text('Output', 'Output (!)')
                         self.view.set_light_color(self.view.compile_light, 'red')
                     func_units[name] = unit_value
-        
+               
         # add to eqsys if we can convert
         self.model.function_units = func_units
                     

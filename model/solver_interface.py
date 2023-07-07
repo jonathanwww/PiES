@@ -5,7 +5,7 @@ from model.equationsystem import EquationSystem
 from model.result import ResultsManager
 
 
-class Solver(QObject):
+class SolverInterface(QObject):
     solve_status = pyqtSignal(str)
     solve_error = pyqtSignal(str)
 
@@ -30,6 +30,9 @@ class Solver(QObject):
     def status(self, status: str):
         solve_message = f"{status}: Run {self.current_grid_info}, block {self.current_block_info}"
         self.solve_status.emit(solve_message)
+    
+    def set_namespace(self, namespace: dict):
+        self.py_namespace = namespace
         
     def set_solver(self, solver: int):
         self.method = solver
@@ -69,7 +72,7 @@ class Solver(QObject):
 
                 if not unsolved_vars:
                     continue
-
+                #print(self.py_namespace)
                 x0, lb, ub = self.variable_info(unsolved_vars)
                 res_f = self.create_residual_func(block_eqs, unsolved_vars, self.py_namespace, X)
 

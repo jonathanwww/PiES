@@ -37,12 +37,3 @@ class InteractiveGraph(QWidget):
         self.y = np.sin((self.x + self.slider.value()) / 10)
         # Update the plot data
         self.curve.setData(self.x, self.y)
-
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-
-    widget = InteractiveGraph()
-    widget.show()
-
-    sys.exit(app.exec())
