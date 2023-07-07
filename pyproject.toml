@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "frees"
+name = "PiES"
 version = "0.1.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
@@ -13,6 +13,7 @@ pyqt6 = "^6.4.2"
 networkx = "^3.0"
 coolprop = "^6.4.3.post1"
 scipy = "^1.10.1"
+pint = "^0.22"
 
 
 [build-system]

@@ -1,15 +1,20 @@
 import sys
 from PyQt6.QtWidgets import QApplication
-
-from logic.equationsystem import EquationSystem
-from ui.window import Window
+from model.equationsystem import EquationSystem
+from ui.window import MainWindow
+from controller.controller import MainController
 
 
 def main():
-    eq_sys = EquationSystem()
     app = QApplication(sys.argv)
-    ex = Window(eq_sys)
-    ex.show()
+    
+    model = EquationSystem()
+    view = MainWindow()
+    controller = MainController(model, view)
+    
+    view.resize(1300, 800)
+    view.show()
+    
     sys.exit(app.exec())
 
 

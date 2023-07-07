@@ -1,312 +1,211 @@
-import traceback
-import logging
-import os
-from pathlib import Path
+from PyQt6.QtWidgets import QMainWindow, QTextEdit, QDockWidget, QSizePolicy, QStatusBar, QMessageBox, QLabel
 
-from PyQt6 import QtWidgets
+from ui.menu import MenuManager
+from PyQt6.QtWidgets import QWidget, QToolBar, QVBoxLayout, QPushButton, QFrame
+from PyQt6.QtGui import QColor, QPainter, QBrush
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QMainWindow, QFileDialog, QMenu, QFrame, QWidget, QStatusBar, QToolBar, QSplitter, QLabel, QVBoxLayout
-from PyQt6.QtGui import QAction
 
-from logic.equationsystem import EquationSystem, NormalVariable, ParameterVariable, LoopVariable, solve, blocking
 
-import re
-from PyQt6.QtGui import QTextCharFormat, QSyntaxHighlighter, QColor, QFont
+class Light(QFrame):
+    def __init__(self, parent=None):
+        super(Light, self).__init__(parent)
+        self.color = QColor()
 
-from ui.editor import PythonEditor, EquationEditor, ConsoleEditor
-from ui.table import VariableTable
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setBrush(QBrush(self.color))
+        painter.drawEllipse(0, 0, self.width(), self.height())
 
-import json
 
-class Window(QMainWindow):
-    def __init__(self, eqsys: EquationSystem, parent=None, flags=Qt.WindowType.Window):
+class DockManager:
+    def __init__(self, main_window):
+        self.main_window = main_window
+        self.docks_map = {
+            "Python": (Qt.DockWidgetArea.LeftDockWidgetArea, main_window.left_toolbar, False),
+            "Plot": (Qt.DockWidgetArea.LeftDockWidgetArea, main_window.left_toolbar, False),
+            "Output": (Qt.DockWidgetArea.BottomDockWidgetArea, main_window.left_toolbar, False),
+            "Variables": (Qt.DockWidgetArea.RightDockWidgetArea, main_window.right_toolbar, True),
+            "Eqsys": (Qt.DockWidgetArea.RightDockWidgetArea, main_window.right_toolbar, False),
+            "Results": (Qt.DockWidgetArea.RightDockWidgetArea, main_window.right_toolbar, False),
+        }
+
+        for dock_name, (position, toolbar, is_visible) in self.docks_map.items():
+            self.main_window.add_button_to_toolbar(dock_name, toolbar)
+            self.add_dock(dock_name, position, is_visible)
+
+    def add_dock(self, dock_name, position, is_visible):
+        dock = QDockWidget(dock_name)
+        dock_layout = QVBoxLayout()
+
+        re_dock_button = QPushButton("re-dock")
+        re_dock_button.clicked.connect(lambda: self.re_dock(dock, position))
+        dock_layout.addWidget(re_dock_button)
+
+        text_edit = QTextEdit()
+        dock_layout.addWidget(text_edit)
+
+        dock_widget_content = QWidget()
+        dock_widget_content.setLayout(dock_layout)
+        dock.setWidget(dock_widget_content)
+
+        dock.widget().re_dock_button = re_dock_button
+
+        if dock_name == "Output":
+            dock.setAllowedAreas(Qt.DockWidgetArea.BottomDockWidgetArea)
+        else:
+            dock.setAllowedAreas(position)
+
+        dock.topLevelChanged.connect(lambda top_level: self.on_dock_floating(dock, top_level))
+        self.main_window.addDockWidget(position, dock)
+        dock.setVisible(is_visible)
+        self.docks_map[dock_name] = dock
+
+    def set_dock_widget(self, dock_name, new_widget):
+        dock = self.docks_map[dock_name]
+
+        dock_layout = QVBoxLayout()
+
+        re_dock_button = QPushButton("re-dock")
+        re_dock_button.clicked.connect(lambda: self.re_dock(dock, self.main_window.dockWidgetArea(dock)))
+
+        dock_layout.addWidget(re_dock_button)
+        dock_layout.addWidget(new_widget)
+
+        dock_widget_content = QWidget()
+        dock_widget_content.setLayout(dock_layout)
+
+        dock.setWidget(dock_widget_content)
+
+    def re_dock(self, dock, position):
+        dock.setFloating(False)
+        self.main_window.addDockWidget(position, dock)
+
+        # Close other docks on the same side that are not floating
+        for name, other_dock in self.docks_map.items():
+            if other_dock != dock and not other_dock.isFloating() and self.main_window.dockWidgetArea(other_dock) == position:
+                other_dock.setVisible(False)
+
+    def on_dock_floating(self, dock, top_level):
+        if top_level:
+            dock.setAllowedAreas(Qt.DockWidgetArea.NoDockWidgetArea)
+        else:
+            dock.setAllowedAreas(self.main_window.dockWidgetArea(dock))
+
+    def toggle_dock(self, dock_name):
+        dock_to_toggle = self.docks_map[dock_name]
+        dock_to_toggle.setVisible(not dock_to_toggle.isVisible())
+
+        toggle_dock_position = self.main_window.dockWidgetArea(dock_to_toggle)
+
+        if dock_to_toggle.isFloating():
+            return
+        else:
+            for name, dock in self.docks_map.items():
+                if name != dock_name:
+                    if self.main_window.dockWidgetArea(dock) == toggle_dock_position and dock.isVisible() and not dock.isFloating():
+                        dock.setVisible(False)
+        
+        
+class MainWindow(QMainWindow):
+    def __init__(self, parent=None, flags=Qt.WindowType.Window):
         super().__init__(parent, flags)
-        self.eqsys = eqsys
+        # file
+        self.current_file_path = None
+        self.is_saved = True
+        
+        # set toolbars
+        self.top_toolbar = self.create_toolbar(Qt.ToolBarArea.TopToolBarArea)
+        self.setup_top_bar()
+        self.left_toolbar = self.create_toolbar(Qt.ToolBarArea.LeftToolBarArea)
+        self.right_toolbar = self.create_toolbar(Qt.ToolBarArea.RightToolBarArea)
+        self.toolbar_buttons = {}
+        
+        # init managers
+        self.dock_manager = DockManager(self)
+        self.menu_manager = MenuManager(self)
+        
+        # status bar
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
 
-        self.statusBar = QStatusBar(self)
-        self.setStatusBar(self.statusBar)
+    def setup_top_bar(self):
+        # Create the first status light and button
+        self.compile_light = Light()
+        self.compile_light.setFixedSize(15, 15)
+        self.set_light_color(self.compile_light, 'yellow')  # Set initial color
 
-        self.python_edit = PythonEditor(self)
-        self.text_edit = EquationEditor(self)
-        self.console_output = ConsoleEditor(self)
+        self.compile_button = QPushButton("Compile")
 
-        self.variables_table = VariableTable(self)
-        self.variables_table.cellChanged.connect(self.update_variable)
+        self.top_toolbar.addWidget(self.compile_light)
+        self.top_toolbar.addWidget(self.compile_button)
 
-        self.toolbar = QToolBar("ToolBar", self)
-        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar)
+        # Create the second status light and button
+        self.validate_light = Light()
+        self.validate_light.setFixedSize(15, 15)
+        self.set_light_color(self.validate_light, 'yellow')  # Set initial color
 
-        toolbar_solve = QAction("Solve", self)
-        toolbar_solve.triggered.connect(self.solve_eqsys)
-        self.toolbar.addAction(toolbar_solve)
+        self.validate_button = QPushButton("Validate")
 
-        toolbar_update_guess_values = QAction("Update Guess Values", self)
-        toolbar_update_guess_values.triggered.connect(self.update_guess_values)
-        self.toolbar.addAction(toolbar_update_guess_values)
+        self.top_toolbar.addWidget(self.validate_light)
+        self.top_toolbar.addWidget(self.validate_button)
 
-        toolbar_remove_unused_variables = QAction("Remove unused variables", self)
-        toolbar_remove_unused_variables.triggered.connect(self.remove_unused_variables)
-        self.toolbar.addAction(toolbar_remove_unused_variables)
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.top_toolbar.addWidget(spacer)
 
-        self.addToolBarBreak()
+        self.solve_button = QPushButton('Solve: 1 Run')
+        self.top_toolbar.addWidget(self.solve_button)
 
-        self.toolbar_console = QToolBar("Console toolbar", self)
-        self.addToolBar(Qt.ToolBarArea.BottomToolBarArea, self.toolbar_console)
+    def set_light_color(self, light, color_name):
+        color = QColor(color_name)
+        light.color = color
+        light.update()  # Necessary to trigger a repaint after changing the color
+    
+    def create_toolbar(self, position):
+        toolbar = QToolBar()
+        toolbar.setMovable(False)
+        toolbar.setFloatable(False)
+        self.addToolBar(position, toolbar)
+        return toolbar
 
-        toolbar_clear_console = QAction("Clear Console", self)
-        toolbar_clear_console.triggered.connect(self.clear_console)
-        self.toolbar_console.addAction(toolbar_clear_console)
+    def add_button_to_toolbar(self, dock_name, toolbar):
+        button = QPushButton(dock_name)
+        button.clicked.connect(lambda: self.reset_button_text(dock_name))
+        button.clicked.connect(lambda: self.dock_manager.toggle_dock(dock_name))
+        button.setProperty("original_text", dock_name)
 
-        toolbar_show_equations = QAction("Show Equations", self)
-        toolbar_show_equations.triggered.connect(self.show_all_equations)
-        self.toolbar_console.addAction(toolbar_show_equations)
+        if dock_name == "Output":
+            spacer = QWidget()
+            spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+            toolbar.addWidget(spacer)
 
-        toolbar_show_blocks = QAction("Show Blocks", self)
-        toolbar_show_blocks.triggered.connect(self.show_blocks)
-        self.toolbar_console.addAction(toolbar_show_blocks)
+        toolbar.addWidget(button)
+        self.toolbar_buttons[dock_name] = button
 
-        console = QFrame()
-        console.setFrameStyle(QFrame.Shape.Box)
-        label_console = QLabel('Console')
-        label_console.setFixedHeight(25)
-        layout_console = QVBoxLayout()
-        layout_console.addWidget(label_console, 1)
-        layout_console.addWidget(self.console_output, 2)
-        layout_console.addWidget(self.toolbar_console, 3)
-        console.setLayout(layout_console)
-        layout_console.setContentsMargins(5, 0, 5, 0)
-
-        python_editor = QFrame()
-        python_editor.setFrameStyle(QFrame.Shape.Box)
-        label_python_editor = QLabel('Python Editor')
-        label_python_editor.setFixedHeight(25)
-        layout_python_editor = QVBoxLayout()
-        layout_python_editor.addWidget(label_python_editor, 1)
-        layout_python_editor.addWidget(self.python_edit, 2)
-        python_editor.setLayout(layout_python_editor)
-        layout_python_editor.setContentsMargins(5, 0, 5, 5)
-
-        text_editor = QFrame()
-        text_editor.setFrameStyle(QFrame.Shape.Box)
-        label_text_editor = QLabel('Equation Editor')
-        label_text_editor.setFixedHeight(25)
-        layout_text_editor = QVBoxLayout()
-        layout_text_editor.addWidget(label_text_editor, 1)
-        layout_text_editor.addWidget(self.text_edit, 2)
-        text_editor.setLayout(layout_text_editor)
-        layout_text_editor.setContentsMargins(5, 0, 5, 5)
-
-        variable_table = QFrame()
-        variable_table.setFrameStyle(QFrame.Shape.Box)
-        label_variable_table = QLabel('Variable Table')
-        label_variable_table.setFixedHeight(25)
-        layout_variable_table = QVBoxLayout()
-        layout_variable_table.addWidget(label_variable_table, 1)
-        layout_variable_table.addWidget(self.variables_table, 2)
-        variable_table.setLayout(layout_variable_table)
-        layout_variable_table.setContentsMargins(5, 0, 5, 5)
-
-        splitter1 = QSplitter(Qt.Orientation.Horizontal) #splits left-right left side includes editors and console  right side variable table
-        splitter2 = QSplitter(Qt.Orientation.Vertical) #splits up-down editors and console
-        splitter3 = QSplitter(Qt.Orientation.Horizontal) #splits left-right between python and equation editors
-
-        # Add editors to splitter 3
-        splitter3.addWidget(python_editor)
-        splitter3.addWidget(text_editor)
-
-        # Add splitter 3 and console to splitter 2
-        splitter2.addWidget(splitter3)
-        splitter2.addWidget(console)
-
-        #add splitter 2 and table to splitter 1
-        splitter1.addWidget(splitter2)
-        splitter1.addWidget(variable_table)
-
-        splitter1.setHandleWidth(5)
-        splitter2.setHandleWidth(5)
-        splitter3.setHandleWidth(5)
-
-        self.setCentralWidget(splitter1)
-        self.setContentsMargins(5, 0, 5, 0)
-
-        self._createActions()
-        self._createMenu()
-
-        self.lastDir = str(Path.home())
-
-        self.sync_gui_and_eqsys()
-
-    def _createActions(self):
-        self.openAction = QAction("&Open", self)
-        self.openAction.triggered.connect(self.loadTextDialog)
-        self.saveAction = QAction("&Save", self)
-        self.saveAction.triggered.connect(self.saveTextDialog)
-        self.exitAction = QAction("&Exit", self)
-        self.exitAction.triggered.connect(self.close)
-
-    def _createMenu(self):
-        menuBar = self.menuBar()
-        fileMenu = QMenu("&File", self)
-        menuBar.addMenu(fileMenu)
-        fileMenu.addAction(self.openAction)
-        fileMenu.addAction(self.saveAction)
-        fileMenu.addAction(self.exitAction)
-
-    def saveTextDialog(self):
-        selectedFile = QFileDialog.getSaveFileName(self, self.tr("Save file"), self.lastDir,
-                                                   self.tr("JSON files (*.json)"))
-        if selectedFile[0]:
-            filename = selectedFile[0]
-            self.saveTextToJson(filename)
-            self.lastDir = os.path.dirname(filename)
-
-    def loadTextDialog(self):
-        selectedFile = QFileDialog.getOpenFileName(self, self.tr("Open file"), self.lastDir,
-                                                   self.tr("JSON files (*.json)"))
-        if selectedFile[0]:
-            filename = selectedFile[0]
-            self.loadTextFromJson(filename)
-            self.lastDir = os.path.dirname(filename)
-
-    def saveTextToJson(self, path: str):
-        dataDict = {}
-        dataDict["pythonStr"] = self.python_edit.toPlainText()
-        dataDict["equationStr"] = self.text_edit.toPlainText()
-        with open(path, "w") as outfile:
-            json.dump(dataDict, outfile, sort_keys=True, indent=4)
-
-    def loadTextFromJson(self, path: str):
-        dataDict = {}
-        with open(path, "r") as infile:
-            dataDict = dict(json.load(infile))
-        self.python_edit.setPlainText(dataDict.get("pythonStr", ""))
-        self.text_edit.setPlainText(dataDict.get("equationStr", ""))
-
-    def keyReleaseEvent(self, e):
-        if e.key() == Qt.Key.Key_Return:
-            self.sync_gui_and_eqsys()
-        # Respect the normal behaviour
-        super().keyReleaseEvent(e)
-
-    def sync_gui_and_eqsys(self):  # syncs the equation system object with the ui input
-        try:
-            # gets the code from python window
-            text = self.text_edit.toPlainText()
-            code = self.python_edit.toPlainText()
-
-            # update eqsys with input from windows
-            self.eqsys.update_eqsys(text, code)
-
-            # update status bar
-            vars_in_use = len([var for var in self.eqsys.variables.values() 
-                               if (isinstance(var, NormalVariable) and var.used) 
-                               or isinstance(var, (LoopVariable, ParameterVariable))])
+    def reset_button_text(self, dock_name):
+        if dock_name in self.toolbar_buttons:
+            button = self.toolbar_buttons[dock_name]
+            original_text = button.property("original_text")
+            button.setText(original_text)
+        
+    def change_button_text(self, button_name, new_text):
+        if button_name in self.toolbar_buttons:
+            self.toolbar_buttons[button_name].setText(new_text)
             
-            self.statusBar.showMessage(f'{"[✓]" if vars_in_use == len(self.eqsys.equations) else "[x]"} '
-                                      f'Variables in use: {vars_in_use} - Equations: {len(self.eqsys.equations)}')
+    def change_solve_button_text(self, text):
+        self.solve_button.setText(text)
+        
+    def show_error_message(self, message):
+        QMessageBox.critical(self, "Error", message)
 
-            # update var window
-            self.variables_table.clear()
-            self.variables_table.setHorizontalHeaderLabels(
-                ["Name", "x0", "Lower b", "Upper b", "Used", "Loopvar", "Paramvar", "Unit"])  # clear() removes headers
-            self.variables_table.setRowCount(len(self.eqsys.variables))
-
-            for i, variable in enumerate(self.eqsys.variables.values()):
-                self.variables_table.setItem(i, 0, QtWidgets.QTableWidgetItem(variable.name))
-                self.variables_table.setItem(i, 7, QtWidgets.QTableWidgetItem(variable.unit))
-                
-                if isinstance(variable, NormalVariable):
-                    self.variables_table.setItem(i, 1, QtWidgets.QTableWidgetItem(str(variable.starting_guess)))
-                    self.variables_table.setItem(i, 2, QtWidgets.QTableWidgetItem(str(variable.lower_bound)))
-                    self.variables_table.setItem(i, 3, QtWidgets.QTableWidgetItem(str(variable.upper_bound)))
-                    self.variables_table.setItem(i, 4, QtWidgets.QTableWidgetItem(str(variable.used)))
-
-                if isinstance(variable, LoopVariable):
-                    self.variables_table.setItem(i, 5, QtWidgets.QTableWidgetItem(str(variable.loop_values)))
-                else:
-                    self.variables_table.setItem(i, 5, QtWidgets.QTableWidgetItem(''))
-
-                if isinstance(variable, ParameterVariable):
-                    self.variables_table.setItem(i, 6, QtWidgets.QTableWidgetItem(str(variable.param_value)))
-                else:
-                    self.variables_table.setItem(i, 6, QtWidgets.QTableWidgetItem(''))
-
-                for j in range(self.variables_table.columnCount()):
-                    item = self.variables_table.item(i, j)
-                    if item is not None:
-                        if isinstance(variable, NormalVariable) and not variable.used:
-                            item.setBackground(QColor(38, 38, 38, 150))
-                        if isinstance(variable, LoopVariable) and isinstance(variable, ParameterVariable):
-                            item.setBackground(QColor(110, 90, 90, 150))
-
-        except Exception:
-            error_message = "Updating eq sys failed with message: " + traceback.format_exc()
-            self.update_console_output(error_message)
-
-    def clear_console(self):
-        self.console_output.clear()
-
-    def update_console_output(self, output_text):
-        old_output = self.console_output.toPlainText() + '\n\n'
-        updated_text = old_output + output_text
-        self.console_output.setPlainText(updated_text)
-
-    def update_variable(self, row, col):
-        item = self.variables_table.item(row, col)
-        variable = list(self.eqsys.variables.values())[row]
-        if col == 1:
-            variable.starting_guess = float(item.text())
-        elif col == 2:
-            variable.lower_bound = float(item.text())
-        elif col == 3:
-            variable.upper_bound = float(item.text())
-        elif col == 7:
-            variable.unit = str(item.text())
-
-    def remove_unused_variables(self):
-        self.sync_gui_and_eqsys()
-        self.eqsys.remove_unused_variables()
-        self.sync_gui_and_eqsys()
-
-    def show_all_equations(self):
-        self.sync_gui_and_eqsys()
-        equations = [eq.string for eq in self.eqsys.equations]
-        self.update_console_output(str(equations))
-
-    def show_blocks(self):
-        self.sync_gui_and_eqsys()
-        try:
-            blocks = blocking(self.eqsys)
-            for block in blocks:
-                eqs = [eq.string for eq in self.eqsys.equations if eq.id in block]
-                string = f"eq ids: {str(block)}, eqs: {str(eqs)}"
-                self.update_console_output(string)
-
-        except Exception:
-            error_message = "Solving eq sys failed with message: " + traceback.format_exc()
-            self.update_console_output(error_message)
-
-    def solve_eqsys(self):
-        self.sync_gui_and_eqsys()
-        try:
-            self.solutions = solve(self.eqsys)
-            # {i: (gridvals, solutions)}
-            for entry in self.solutions.values():
-                self.update_console_output('Loop var vals' + str(entry[0]) + '\nVariable solutions:')
-                post = [k for k in entry[1].items()]
-                self.update_console_output(str(post))
-
-        except Exception:
-            error_message = "Solving eq sys failed with message: " + traceback.format_exc()
-            self.update_console_output(error_message)
-
-    def update_guess_values(self):
-        variables = self.eqsys.variables
-        solutions = self.solutions
-        for var in variables:
-            if isinstance(variables[var], NormalVariable):
-                variables[var].starting_guess = solutions[len(solutions)-1][1][var]
-
-        self.sync_gui_and_eqsys()
-
-
+    def closeEvent(self, event):
+        if not self.is_saved:
+            reply = QMessageBox.question(self, "Unsaved Changes",
+                                         "There are unsaved changes. Are you sure you want to exit?",
+                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.Yes:
+                event.accept()
+            else:
+                event.ignore()
+        else:
+            event.accept()

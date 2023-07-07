@@ -1,15 +1,15 @@
-import numpy as np
+import autograd.numpy as np
+from autograd import jacobian
 import logging
 import scipy.optimize as sio
-
-from logic.util import jacobian
-
 
 # Use a method selector to enable different solvers for debugging
 # method = -1: compare SciPy least squares and the internal solver
 # method =  0: use the internal solver (default)
 # method =  1: use SciPy least squares
 # method =  2: use SciPy minimizer
+
+
 def solver_wrapper(residual_func, initial_guesses: np.ndarray, bounds=None, tol=1e-6, max_iter=500, verbose=False, method=0):
     if method == 0:
         return newton_raphson(residual_func, initial_guesses, bounds=bounds, tol=tol, max_iter=max_iter, verbose=verbose)
@@ -24,19 +24,25 @@ def solver_wrapper(residual_func, initial_guesses: np.ndarray, bounds=None, tol=
     elif method == -1:
         res_int = solver_wrapper(residual_func, initial_guesses, bounds=bounds, tol=tol, max_iter=max_iter, verbose=verbose, method=0)
         res_sio = solver_wrapper(residual_func, initial_guesses, bounds=bounds, tol=tol, max_iter=max_iter, verbose=verbose, method=1)
-        logging.debug("Difference vs scipy: %s", str(res_sio - res_int))
+        logging.error("Difference vs scipy: %s", str(res_sio - res_int))
         return res_int
     logging.error("No solver selected, returning an invalid result.")
     return np.full_like(initial_guesses, np.NaN)
 
 
 def newton_raphson(residual_func, initial_guesses: np.ndarray, bounds=None, tol=1e-6, max_iter=500, verbose=False):
-    x = initial_guesses
+    x = np.array(initial_guesses, dtype=float)
     res = residual_func(x)
-    
+
+    jacobian_func = jacobian(residual_func)
+
     for i in range(max_iter):
-        delta_x = np.linalg.inv(jacobian(x, residual_func)) @ res
+        J = jacobian_func(x)
+        if verbose:
+            print(f"Jacobian at iteration {i + 1}:\n", J)
+        delta_x = np.linalg.solve(J, res)
         x_new = x - delta_x
+
         if bounds is not None:
             x_new = np.maximum(x_new, bounds[0])
             x_new = np.minimum(x_new, bounds[1])
@@ -45,7 +51,7 @@ def newton_raphson(residual_func, initial_guesses: np.ndarray, bounds=None, tol=
 
         if verbose:
             print(f"Iteration {i + 1}: x = {x}, delta_x = {delta_x}")
-        if max(abs(res)) < tol:
+        if np.linalg.norm(res) < tol:
             break
     else:
         raise RuntimeError(f"newton_raphson did not converge after {max_iter} iterations")

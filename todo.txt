@@ -1,9 +1,0 @@
-TODO
-faster evaluation than eval, numexpr
-multi process on solving grids
-add rules for syntax highlighting for eq window and python window. Perhaps based on the validation system
-
-BUGS
-Loop var/param var after normal var with same name does not override
-a-2=5 makes param var with a-2 name
-find_all_variables will bug if eq contains more than one equal sign

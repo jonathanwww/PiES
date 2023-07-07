@@ -1,0 +1,15 @@
+from numpy import cos, sin
+from CoolProp.CoolProp import PropsSI
+from model.util import output_unit, Grid 
+
+# Set output unit with the decorator
+# if no unit is set for a function unit defaults to dimensionless
+@output_unit('meter')
+def test(x,y,str_input):
+   return x+y if str_input == "add" else 0
+   
+# instantiate a grid and add variables to it
+# They must be defined in the eq window
+grid = Grid()
+grid.assign('x', [1, 2, 3])
+grid.assign('k', [i for i in range(10)])

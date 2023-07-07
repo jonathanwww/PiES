@@ -1,6 +1,7 @@
-numpy
+numpy~=1.23.5
 matplotlib
-scipy
-PyQt6
-networkx
+scipy~=1.10.1
+PyQt6~=6.4.2
+networkx~=3.1
 coolprop
+pint~=0.22
