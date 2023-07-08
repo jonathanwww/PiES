@@ -2,6 +2,7 @@ import os
 import logging
 from lark import Lark
 
+from PyQt6 import QtCore
 from PyQt6.QtCore import Qt
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QKeyEvent
@@ -119,27 +120,36 @@ class BaseEditor(QsciScintilla):
 
         self.fillIndicatorRange(line_num, 0, line_num, self.lineLength(line_num), indicator)
 
-    def keyPressEvent(self, event: QKeyEvent):
+    def keyPressEvent(self, event):
         """
-        Auto completes quotes and parentheses and moves cursor into the middle 
+        Auto completes quotes, parentheses, brackets and braces, and moves cursor into the middle 
         """
         key = event.key()
 
-        # Get the position of cursor and character to its right
-        pos = self.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
-        next_char = self.SendScintilla(QsciScintilla.SCI_GETCHARAT, pos)
-
-        # Check if next character is whitespace or end of document
-        next_is_empty = next_char in (0, 32, 9, 10, 13)  # 0 for end of document, 32 for ' ', 9 for '\t', 10 for '\n', 13 for '\r'
-
         # Dictionary of keys and their corresponding closing characters
-        keys_dict = {Qt.Key.Key_QuoteDbl: '"', Qt.Key.Key_Apostrophe: "'", Qt.Key.Key_ParenLeft: ')'}
+        wrap_pairs = {
+            QtCore.Qt.Key.Key_QuoteDbl: '"',
+            QtCore.Qt.Key.Key_Apostrophe: "'",
+            QtCore.Qt.Key.Key_ParenLeft: ')'
+        }
 
-        if key in keys_dict and next_is_empty:
-            super().keyPressEvent(event)
-            self.insert(keys_dict[key])
-        else:
-            super().keyPressEvent(event)
+        if key in wrap_pairs:
+            selected_text = self.selectedText()
+
+            # Check if next character is whitespace, end of document, or closing bracket/parentheses/brace
+            pos = self.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
+            next_char = self.SendScintilla(QsciScintilla.SCI_GETCHARAT, pos)
+            next_is_empty_or_closing = next_char in (0, 32, 9, 10, 13, 41)  # 0 for end of document, 32 for ' ', 9 for '\t', 10 for '\n', 13 for '\r', for ')'
+
+            if selected_text:  # if there's a text selection
+                self.replaceSelectedText(f'{chr(key)}{selected_text}{wrap_pairs[key]}')
+                return
+            elif next_is_empty_or_closing:  # if the next character is a whitespace, end of document, or closing bracket/parentheses/brace
+                super().keyPressEvent(event)
+                self.insert(wrap_pairs[key])
+                return
+
+        super().keyPressEvent(event)
 
     def mouseMoveEvent(self, e):
         """

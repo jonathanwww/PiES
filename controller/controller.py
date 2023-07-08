@@ -1,5 +1,4 @@
 import types
-import inspect
 import traceback
 import pint
 from lark import UnexpectedCharacters, UnexpectedToken
@@ -228,7 +227,6 @@ class MainController(QObject):
         del namespace['__builtins__']  # remove built-ins from the namespace
         
         self.solver.set_namespace(namespace)
-        print(namespace)
         
         func_units = {}
         
@@ -260,7 +258,7 @@ class MainController(QObject):
                         self.console_output.insert("Grid does not match variables in equation system" + "\n")
                         self.view.change_button_text('Output', 'Output (!)')
                         self.view.set_light_color(self.view.compile_light, 'red')
-                        raise Exception("Grid does not match variables in equation system")
+                        raise Exception("Grid does not match variables in equation system or is overlapping parameter variable")
                     break
             # There is an instance of the Grid class within the namespace
             self.view.change_solve_button_text(f"Solve: {len(self.model.grid.get_grid())} Runs")
