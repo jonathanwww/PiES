@@ -1,12 +1,13 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QCheckBox, QPushButton, QLineEdit, 
                              QTreeView, QTableWidget, QTableWidgetItem, QGroupBox, 
-                             QHBoxLayout, QAbstractItemView, QComboBox)
-from PyQt6.QtCore import Qt, QSortFilterProxyModel
+                             QHBoxLayout, QAbstractItemView, QComboBox, QTabWidget)
+from PyQt6.QtCore import Qt, QSortFilterProxyModel, pyqtSignal
 from PyQt6.QtGui import QStandardItemModel, QStandardItem
-# todo: refactor, make results uneditable
 
 
 class ResultsWidget(QWidget):
+    update_starting_guess = pyqtSignal(dict)  # Emit a list of column contents for the selected row
+
     def __init__(self, results_manager, parent=None):
         super().__init__(parent)
         self.results_manager = results_manager
@@ -58,16 +59,16 @@ class ResultsWidget(QWidget):
         self.tree_view.setModel(self.proxy_model)
         self.variable_layout.addWidget(self.tree_view)
         
-        # QTableWidget for displaying the solver results
-        self.table_widget = QTableWidget()
-        self.table_widget.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table_widget.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
-        self.layout.addWidget(self.table_widget)
+        # QTabWidget for displaying the solver results
+        self.tab_widget = QTabWidget()
+        self.layout.addWidget(self.tab_widget)
 
         # QPushButton for the required functionalities
-        self.delete_button = QPushButton("Delete Selected Runs")
+        self.delete_button = QPushButton("Delete entry")
+        self.delete_button.clicked.connect(self.delete_selected_entry)
         self.copy_button = QPushButton("Copy results from Selected Runs")
         self.send_button = QPushButton("Send Run Result to x0")
+        self.send_button.clicked.connect(self.send_run_result)
 
         self.button_layout = QHBoxLayout()
         self.button_layout.addWidget(self.delete_button)
@@ -94,7 +95,34 @@ class ResultsWidget(QWidget):
         self.model.itemChanged.connect(self.on_variable_changed)
         # Connect the textChanged signal to uncheck_all
         self.search_line_edit.textChanged.connect(self.uncheck_check_all_checkbox)
-    
+
+    def send_run_result(self):
+        # Get the currently active table widget
+        table_widget = self.tab_widget.widget(self.tab_widget.currentIndex())
+
+        # Get selected rows
+        selected_rows = list({index.row() for index in table_widget.selectionModel().selectedIndexes()})
+        
+        if len(selected_rows) == 0:
+            self.parent().parent().parent().show_error_message("Please select a row.")
+        elif len(selected_rows) > 1:
+            self.parent().parent().parent().show_error_message("Please select only one row.")
+        elif selected_rows:
+            row = selected_rows[0]
+            # Get the contents of the columns in the selected row
+            contents = {table_widget.horizontalHeaderItem(column).text(): table_widget.item(row, column).text()
+                        for column in range(table_widget.columnCount())}
+            print(contents)
+            # Emit the signal with the contents of the columns in the selected row
+            self.update_starting_guess.emit(contents)
+            
+    def delete_selected_entry(self):
+        index = self.tab_widget.currentIndex()
+        if index != -1:  # No tab is selected if currentIndex returns -1
+            self.results_manager.delete_entry(index)
+            self.tab_widget.removeTab(index)
+            self.update()
+            
     def toggle_variable_selector(self):
         # If the variable selector is visible, hide it. Otherwise, show it.
         if self.variable_groupbox.isVisible():
@@ -138,23 +166,19 @@ class ResultsWidget(QWidget):
             item.setCheckState(state)
 
     def update_solver_results(self):
-        selected_variables = self.get_selected_variables()
+        # Save the current tab index
+        current_tab_index = self.tab_widget.currentIndex()
 
-        # Set column count and headers
-        self.table_widget.setColumnCount(len(selected_variables))
-        self.table_widget.setHorizontalHeaderLabels(selected_variables)
+        # Clear the tab widget
+        self.tab_widget.clear()
 
-        # Set row count and data
-        self.table_widget.setRowCount(len(self.results_manager.all_results))
-        for i, result in enumerate(self.results_manager.all_results):
-            # Set row header (run name)
-            self.table_widget.setVerticalHeaderItem(i, QTableWidgetItem(f"Run {i + 1}"))
+        # For each list of results, create a table widget and add it as a tab
+        for i, results in enumerate(self.results_manager.entries):
+            table_widget = self.create_table_widget(results)
+            self.tab_widget.addTab(table_widget, f'Entry {i + 1}')
 
-            # Set cell values
-            for j, var in enumerate(selected_variables):
-                value = result.get(var, 0.0)
-                formatted_value = self.format_value(value)
-                self.table_widget.setItem(i, j, QTableWidgetItem(formatted_value))
+        # Restore the current tab index
+        self.tab_widget.setCurrentIndex(current_tab_index)
     
     def format_value(self, value):
         format_type = self.format_combobox.currentText()
@@ -180,7 +204,33 @@ class ResultsWidget(QWidget):
             item.setCheckState(Qt.CheckState.Checked)
             self.model.appendRow(item)
         self.proxy_model.setSourceModel(self.model)
+    
+    def create_table_widget(self, results):
+        table_widget = QTableWidget()
+        table_widget.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        table_widget.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+        table_widget.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
+        selected_variables = self.get_selected_variables()
+
+        # Set column count and headers
+        table_widget.setColumnCount(len(selected_variables))
+        table_widget.setHorizontalHeaderLabels(selected_variables)
+
+        # Set row count and data
+        table_widget.setRowCount(len(results))
+        for i, result in enumerate(results):
+            # Set row header (run name)
+            table_widget.setVerticalHeaderItem(i, QTableWidgetItem(f"Run {i + 1}"))
+
+            # Set cell values
+            for j, var in enumerate(selected_variables):
+                value = result.get(var, 0.0)
+                formatted_value = self.format_value(value)
+                table_widget.setItem(i, j, QTableWidgetItem(formatted_value))
+
+        return table_widget
+    
     def update(self):
         self.update_solver_variables()
         self.update_solver_results()

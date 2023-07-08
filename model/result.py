@@ -9,14 +9,11 @@ class ResultsManager(QObject):
         self.entries = []
         # todo: remove this and adjust results widget
         self.all_variables = set()  # a set of all the key elements in the dictionaries in all_results
-        self.all_results = []  # self.entries is a list of lists. the inner lists contains dictionaries. we want all the dictionaries from all the inner list in one list
 
     def _updated(self):
         self.all_variables.clear()
-        self.all_results.clear()
         for entry in self.entries:
             for result in entry:
-                self.all_results.append(result)
                 self.all_variables.update(result.keys())
         self.data_changed.emit()
         

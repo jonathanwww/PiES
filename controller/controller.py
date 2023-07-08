@@ -1,4 +1,3 @@
-import types
 import traceback
 import pint
 from lark import UnexpectedCharacters, UnexpectedToken
@@ -11,7 +10,6 @@ from ui.widgets.statusbar import StatusBarWidget
 from ui.widgets.plot import InteractiveGraph
 from ui.widgets.editor import PythonEditor, EquationEditor, ConsoleEditor
 from model.solver_interface import SolverInterface
-from model.util import Grid
 from model.equationsystem import EquationSystem
 from model.variable import Variable
 from model.equation import Equation
@@ -69,7 +67,7 @@ class MainController(QObject):
         self.view.setCentralWidget(self.equation_edit)
         self.view.status_bar.addPermanentWidget(self.status_bar_widget)
 
-    def _set_signals(self):        
+    def _set_signals(self):
         # editor text change
         self.equation_edit.textChangedSignal.connect(self.equation_editor_change)
         self.python_edit.textChangedSignal.connect(self.python_editor_change)
@@ -81,6 +79,9 @@ class MainController(QObject):
         
         # when updating variable attribute
         self.model.variable_manager.attribute_updated.connect(self.attribute_updated)
+
+        # X0 from results manager
+        self.results_widget.update_starting_guess.connect(self.update_starting_guess)
         
         # send errors in solving to console
         self.solver_intf.solve_error.connect(self.console_message)
@@ -108,6 +109,21 @@ class MainController(QObject):
                     if results:
                         self.equation_edit.set_indicator(line_num, 0, 0, str(results), False)
 
+    def update_starting_guess(self, variable_dict):
+        # Check if all keys are present in the dict self.model.variables
+        missing_variables = [key for key in variable_dict if key not in self.model.variables]
+        
+        # warning about missing variables
+        if missing_variables:
+            self.view.show_error_message(f"The following variables are not present in the equation system: {missing_variables}")
+        
+        # insert starting guesses
+        for variable, value in variable_dict.items():
+            if variable in self.model.variables and variable:
+                # do not update starting guess for parameters and grid variables
+                if variable not in self.model.grid.variables and variable not in self.model.parameter_variables:
+                    self.model.variable_manager.update_variable(variable, 'starting_guess', value)
+            
     def refresh_solve_button(self):
         # update number of runs
         grid_len = len(self.model.grid.get_grid())
@@ -118,19 +134,21 @@ class MainController(QObject):
         self.view.change_solve_button_text(message)
         
         # set enabled/disabled if compiled and validated
+        print(self.compiled, self.validated)
         self.view.solve_button.setEnabled(self.compiled and self.validated)
         
     def update_status(self, status, light):
+        print(status)
         if light == 'validate':
             light = self.view.validate_light
-            if status == -1 or 0:
+            if status in [-1, 0]:
                 self.validated = False
             elif status == 1:
                 self.validated = True
 
         elif light == 'compile':
             light = self.view.compile_light
-            if status == -1 or 0:
+            if status in [-1, 0]:
                 self.compiled = False
             elif status == 1:
                 self.compiled = True
