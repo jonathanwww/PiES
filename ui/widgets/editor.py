@@ -256,4 +256,4 @@ class ConsoleEditor(BaseEditor):
         self.setReadOnly(True)
         
     def insert(self, text):
-        self.append(text)
+        self.append(text + "\n")

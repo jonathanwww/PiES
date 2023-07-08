@@ -21,9 +21,18 @@ class VariableTableWidget(QWidget):
         self.ureg = ureg
 
         self.equation_system = equation_system
-
+        
+        # update table on changes in eq sys
+        self.equation_system.data_changed.connect(self.updateData)
+        
         self._create_widgets()
         self._setup_layout()
+        
+        # on change attribute send to variable manager
+        self.table_model.attribute_update.connect(self.equation_system.variable_manager.update_variable)
+        
+        # send error messages from table to view
+        self.table_model.error.connect(self.parent().show_error_message)
 
     def _create_widgets(self):
         self.table_model = VariableTable(self.ureg, self)

@@ -54,7 +54,8 @@ class EquationSystem(QObject):
         self.unit_validator = ValidateUnits(unit_registry=ureg)
         
     def set_grid(self, grid: Grid) -> None:
-        self.grid = grid    
+        self.grid = grid
+        self._on_change()
     
     def insert_equation(self, equation: Equation, variables: list[Variable]) -> None:
         # if parameter equation increment value or insert
@@ -169,7 +170,7 @@ class EquationSystem(QObject):
             self.valid = True
         else:
             self.valid = False
-        
+            
         return block_status
     
     def blocking(self) -> list:

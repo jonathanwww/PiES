@@ -7,7 +7,7 @@ from model.result import ResultsManager
 
 class SolverInterface(QObject):
     solve_status = pyqtSignal(str)
-    solve_error = pyqtSignal(str)
+    solve_error = pyqtSignal(str, str)  # error message, button(s) to set alert on
 
     def __init__(self, equation_system: EquationSystem, results_manager: ResultsManager):
         super().__init__()
@@ -42,7 +42,7 @@ class SolverInterface(QObject):
             self._solve()
         except Exception as e:
             self.status('Failed')
-            self.solve_error.emit(str(e))
+            self.solve_error.emit(str(e), 'Output')
             return
         self.status('Finished')
         

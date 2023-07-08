@@ -27,7 +27,7 @@ class MainController(QObject):
         self.view = view
 
         self.results = ResultsManager()
-        self.solver = SolverInterface(equation_system=self.model, results_manager=self.results)
+        self.solver_intf = SolverInterface(equation_system=self.model, results_manager=self.results)
         
         # set unit registry
         self.ureg = pint.UnitRegistry()
@@ -40,19 +40,20 @@ class MainController(QObject):
         # status flags for allowing solving
         self.compiled = False
         self.validated = False
-        self.update_solve_button()  # So it's turned off at start
-        self._refresh_gui()
+        
+        # Make sure buttons turned off, widgets refreshed etc
+        self._on_start()
 
     def _set_widgets(self):
         # init widgets
         self.variable_widget = VariableTableWidget(self.model, self.ureg, self.view)
         self.eqsys_widget = EquationSystemWidget(self.model, self.view)
-        self.status_bar_widget = StatusBarWidget(self.model, self.view)
+        self.status_bar_widget = StatusBarWidget(self.model, self.solver_intf, self.view)
         self.plot_widget = InteractiveGraph(self.view)
-        self.results_widget = ResultsWidget(self.results)
+        self.results_widget = ResultsWidget(self.results, self.view)
  
         # init editors
-        self.console_output = ConsoleEditor(self.view)
+        self.console = ConsoleEditor(self.view)
         self.python_edit = PythonEditor(self.view)
         self.equation_edit = EquationEditor(self.view)
         
@@ -62,21 +63,13 @@ class MainController(QObject):
         self.view.dock_manager.set_dock_widget('Eqsys', self.eqsys_widget)
         self.view.dock_manager.set_dock_widget('Plot', self.plot_widget)
         self.view.dock_manager.set_dock_widget('Python', self.python_edit)
-        self.view.dock_manager.set_dock_widget('Output', self.console_output)
-
+        self.view.dock_manager.set_dock_widget('Output', self.console)
+        
+        # set central widget and status bar
         self.view.setCentralWidget(self.equation_edit)
         self.view.status_bar.addPermanentWidget(self.status_bar_widget)
 
-    def _set_signals(self):
-        # refresh results widget when results manager changes 
-        self.results.data_changed.connect(self.results_widget.update)
-        
-        # shows the status during solving
-        self.solver.solve_status.connect(self.update_solving_status)
-        
-        # send errors from solving to console errors from solving
-        self.solver.solve_error.connect(self.send_to_console)
-
+    def _set_signals(self):        
         # editor text change
         self.equation_edit.textChangedSignal.connect(self.equation_editor_change)
         self.python_edit.textChangedSignal.connect(self.python_editor_change)
@@ -86,30 +79,16 @@ class MainController(QObject):
         self.view.compile_button.clicked.connect(self.run_compile)
         self.view.validate_button.clicked.connect(self.run_validation)
         
-        # variable table
-        self.variable_widget.table_model.error.connect(self.view.show_error_message)  # when wrong input in variable table
-        self.variable_widget.table_model.attribute_update.connect(self.model.variable_manager.update_variable)
-        
+        # TODO: on unit change, revalidate, on compile, revalidate (function units, maybe also grid?)
         # when updating variable attribute
         self.model.variable_manager.attribute_updated.connect(self._attribute_updated)
-        # on changes in py window or equation system, update widgets
-        self.model.data_changed.connect(self._refresh_gui)
         
-        # todo: should it just be on pressing compile? If we cant compile, delete grid/funcion units?
-        # we cant solve though, since not compiled, but stats will show grids from previous compile hmm
-        self.view.compile_button.clicked.connect(self._refresh_gui)
-        self.view.validate_button.clicked.connect(self._refresh_gui)
+        # send errors in solving to console
+        self.solver_intf.solve_error.connect(self.console_message)
+    
+    def _on_start(self):
+        self.refresh_solve_button()
         
-    def _refresh_gui(self):
-        # update status bar
-        self.status_bar_widget.update_widget()
-
-        # update eqsys widget
-        self.eqsys_widget.update_widget()
-
-        # update variables table
-        self.variable_widget.updateData()
-
     def _attribute_updated(self, variable_name, attribute_name):
         """
         if changing unit revalidate equations with that variable 
@@ -126,6 +105,46 @@ class MainController(QObject):
                     results = self.model.validate_equation(eq.id)
                     if results:
                         self.equation_edit.set_indicator(line_num, 0, 0, str(results), False)
+
+    def refresh_solve_button(self):
+        self.view.solve_button.setEnabled(self.compiled and self.validated)
+
+    def update_status(self, status, light):
+        if light == 'validate':
+            light = self.view.validate_light
+            if status == -1 or 0:
+                self.validated = False
+            elif status == 1:
+                self.validated = True
+
+        elif light == 'compile':
+            light = self.view.compile_light
+            if status == -1 or 0:
+                self.compiled = False
+            elif status == 1:
+                self.compiled = True
+
+        if status == -1:
+            self.view.set_light_color(light, 'red')
+        elif status == 0:
+            self.view.set_light_color(light, 'yellow')
+        elif status == 1:
+            self.view.set_light_color(light, 'green')
+
+        self.refresh_solve_button()
+    
+    def console_message(self, message: str, widget_alerts=None):
+        # send message to console and update console button with alert
+        self.console.insert(message)
+        self.view.change_button_text('Output', 'Output (!)')
+        
+        if widget_alerts is not None:
+            # If widget_alerts is a string, convert it into a list.
+            if not isinstance(widget_alerts, list):
+                widget_alerts = [widget_alerts]
+    
+            for alert in widget_alerts:
+                self.view.change_button_text(alert, f'{alert} (!)')
 
     # Triggers on text change in the editors
     def equation_editor_change(self, text):        
@@ -175,58 +194,55 @@ class MainController(QObject):
             except (UnexpectedCharacters, UnexpectedToken) as e:
                 # continue to next line
                 pass
-        
-        self.view.set_light_color(self.view.validate_light, 'yellow')
-        self.validated = False
-        self.update_solve_button()
-                
+
+        self.update_status(0, 'validate')     
+ 
     def python_editor_change(self, text):
-        self.view.set_light_color(self.view.compile_light, 'yellow')
-        self.view.set_light_color(self.view.validate_light, 'yellow')
-        self.compiled = False
-        self.validated = False
-        self.update_solve_button()
+        self.update_status(0, 'validate')
+        self.update_status(0, 'compile')
 
     # Triggers on button clicks in GUI
+    def run_solve(self):
+        self.solver_thread = SolverThread(self.solver_intf)
+        self.solver_thread.start()
+        
     def run_validation(self):
         val_results = self.model.validate_equation_system()
         
         # Check if eqsys was succesfully validated
         if self.model.valid:
-            self.view.set_light_color(self.view.validate_light, 'green')
-            self.validated = True
+            self.update_status(1, 'validate')
         else:
-            self.view.set_light_color(self.view.validate_light, 'red')
-            self.validated = False
-            self.console_output.insert(str(val_results) + "\n")
-            self.view.change_button_text('Output', 'Output (!)')
-            self.view.change_button_text('Eqsys', 'Eqsys (!)')
-        
+            self.update_status(-1, 'validate')
+            
+            message = str(val_results)
+            self.console_message(message, 'Eqsys')
+            
         self.eqsys_widget.refresh_web_widget()
-        self.update_solve_button()
 
     def run_compile(self):
         # TODO: we need to only run the last commands if nothing fails
         text = self.python_edit.text()
         code = str(text)
         namespace = {}
+        
         try:
             compiled_code = compile(code, '<string>', 'exec')
             exec(compiled_code, namespace)
         except SyntaxError as e:
-            self.console_output.insert(str(e) + "\n")
-            self.view.change_button_text('Output', 'Output (!)')
-            self.view.set_light_color(self.view.compile_light, 'red')
+            self.console_message(str(e))
+            self.update_status(-1, 'compile')
             return e
         except Exception as e:
-            self.console_output.insert(f"Unexpected error: {traceback.format_exc()}" + "\n")
-            self.view.change_button_text('Output', 'Output (!)')
-            self.view.set_light_color(self.view.compile_light, 'red')
+            message = f"Unexpected error: {traceback.format_exc()}"
+            self.console_message(message)
+
+            self.update_status(-1, 'compile')
             return e
         
         del namespace['__builtins__']  # remove built-ins from the namespace
         
-        self.solver.set_namespace(namespace)
+        self.solver_intf.set_namespace(namespace)
         
         func_units = {}
         
@@ -237,9 +253,10 @@ class MainController(QObject):
                     try:
                         self.ureg[unit_value]
                     except Exception as e:
-                        self.console_output.insert(f"Cannot convert {unit_value} to a unit" + "\n")
-                        self.view.change_button_text('Output', 'Output (!)')
-                        self.view.set_light_color(self.view.compile_light, 'red')
+                        message = f"Cannot convert {unit_value} to a unit"
+                        self.console_message(message)
+                        self.update_status(-1, 'compile')
+                        
                     func_units[name] = unit_value
                
         # add to eqsys if we can convert
@@ -255,9 +272,9 @@ class MainController(QObject):
                     if valid_grid:
                         self.model.set_grid(obj)
                     else:
-                        self.console_output.insert("Grid does not match variables in equation system" + "\n")
-                        self.view.change_button_text('Output', 'Output (!)')
-                        self.view.set_light_color(self.view.compile_light, 'red')
+                        message = "Grid does not match variables in equation system or is overlapping parameter variable"
+                        self.console_message(message)
+                        self.update_status(-1, 'compile')
                         raise Exception("Grid does not match variables in equation system or is overlapping parameter variable")
                     break
             # There is an instance of the Grid class within the namespace
@@ -267,26 +284,4 @@ class MainController(QObject):
             self.view.change_solve_button_text("Solve: 1 Run")
         
         # if we pass everything
-        self.compiled = True
-        self.view.set_light_color(self.view.compile_light, 'green')
-        self.update_solve_button()
-        # todo: this might have to be moved depending on if we store old py on fail compile
-        self.eqsys_widget.refresh_web_widget()
-
-    def run_solve(self):
-        self.solver_thread = SolverThread(self.solver)
-        self.solver_thread.start()
-    
-    def update_solve_button(self):
-        self.view.solve_button.setEnabled(self.compiled and self.validated)
-
-    # Updates status bar with solving status: run 1/n, block ..
-    def update_solving_status(self, message: str):
-        # update status bar
-        self.status_bar_widget.status_label.setText(message)
-    
-    def send_to_console(self, message: str):
-        self.console_output.insert(message + "\n")
-        # todo: make a system for setting the window alert also
-        self.view.change_button_text('Output', 'Output (!)')
-        
+        self.update_status(1, 'compile')

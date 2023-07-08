@@ -10,6 +10,9 @@ class EquationSystemWidget(QWidget):
         super().__init__(parent)
         self.eqsys = eqsys
 
+        # refresh on change in eqsys
+        self.eqsys.data_changed.connect(self.update_widget)
+        
         # Layout for the widget
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
@@ -84,12 +87,12 @@ class EquationSystemWidget(QWidget):
         # Create a web widget to display the network graph
         self.web_widget = QWebEngineView()
         self.blocking_layout.addWidget(self.web_widget)
-
-        # Initialize the blocking graph 
-        self.refresh_web_widget()
         
         # Hide the equation system info by default
         self.eqinfo_groupbox.hide()
+        
+        # refresh graph on start
+        self.refresh_web_widget()
     
     def update_widget(self):
         self.variable_count_label.setText(f"Variables: {len(self.eqsys.variables)}")
@@ -140,7 +143,7 @@ class EquationSystemWidget(QWidget):
     def refresh_web_widget(self):
         def get_variables(block):
             return set(var for eq_id in block for var in self.eqsys.equations[eq_id].variables)
-
+        
         blocking_results = self.eqsys.blocking()
         validation_results = self.eqsys.validate_equation_system()
         

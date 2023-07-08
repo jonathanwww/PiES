@@ -3,10 +3,17 @@ from PyQt6 import QtCore
 
 
 class StatusBarWidget(QWidget):
-    def __init__(self, equation_system, parent=None):
+    def __init__(self, equation_system, solver_interface, parent=None):
         super().__init__(parent)
         self.equation_system = equation_system
-                
+        self.solver_interface = solver_interface
+
+        # refresh on eq sys update
+        self.equation_system.data_changed.connect(self.update_widget)
+        
+        # shows the status during solving
+        self.solver_interface.solve_status.connect(self.update_solving_status)
+        
         # layout
         self.layout = QHBoxLayout()
         self.setLayout(self.layout)
@@ -35,3 +42,7 @@ class StatusBarWidget(QWidget):
         num_norm = max(num_var - num_grid - num_param, 0)
         self.data_label.setText(
             f"Equations: {num_eq} - Variables: {num_var} ({num_norm} norm {num_param} param {num_grid} grid)")
+    
+    def update_solving_status(self, message: str):
+        # Updates status bar with solving status: run 1/n, block ..
+        self.status_label.setText(message)

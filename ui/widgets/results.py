@@ -7,10 +7,13 @@ from PyQt6.QtGui import QStandardItemModel, QStandardItem
 
 
 class ResultsWidget(QWidget):
-    def __init__(self, results_manager):
-        super().__init__()
+    def __init__(self, results_manager, parent=None):
+        super().__init__(parent)
         self.results_manager = results_manager
 
+        # refresh on change in results manager
+        self.results_manager.data_changed.connect(self.update)
+        
         # Layout for the widget
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
