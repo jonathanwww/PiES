@@ -56,7 +56,11 @@ class EquationSystem(QObject):
     def set_grid(self, grid: Grid) -> None:
         self.grid = grid
         self._on_change()
-    
+        
+    def set_function_units(self, function_units: dict):
+        self.function_units = function_units
+        self._on_change()
+        
     def insert_equation(self, equation: Equation, variables: list[Variable]) -> None:
         # if parameter equation increment value or insert
         if equation.parameter_equation:
@@ -151,7 +155,7 @@ class EquationSystem(QObject):
             block_vars = [var for var in block_vars if var not in solved_variables]
 
             # Check the status of the block
-            if len(block_vars) == len(block_eqs):
+            if len(block_vars) == len(block_eqs) or len(block_vars) == 0:
                 status = 'valid'
             elif len(block_vars) < len(block_eqs):
                 status = 'over-determined'

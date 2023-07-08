@@ -115,7 +115,8 @@ class MainWindow(QMainWindow):
         
         # set toolbars
         self.top_toolbar = self.create_toolbar(Qt.ToolBarArea.TopToolBarArea)
-        self.setup_top_bar()
+        self._setup_top_bar()
+        
         self.left_toolbar = self.create_toolbar(Qt.ToolBarArea.LeftToolBarArea)
         self.right_toolbar = self.create_toolbar(Qt.ToolBarArea.RightToolBarArea)
         self.toolbar_buttons = {}
@@ -128,7 +129,7 @@ class MainWindow(QMainWindow):
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
 
-    def setup_top_bar(self):
+    def _setup_top_bar(self):
         # Create the first status light and button
         self.compile_light = Light()
         self.compile_light.setFixedSize(15, 15)

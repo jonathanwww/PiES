@@ -16,7 +16,7 @@ from model.equationsystem import EquationSystem
 from model.variable import Variable
 from model.equation import Equation
 from validation.validation import EquationTransformer
-from controller.util import SolverThread
+from controller.util import check_grid, get_grid, check_function_units, get_function_units, SolverThread
 from model.result import ResultsManager
 
 
@@ -79,20 +79,22 @@ class MainController(QObject):
         self.view.compile_button.clicked.connect(self.run_compile)
         self.view.validate_button.clicked.connect(self.run_validation)
         
-        # TODO: on unit change, revalidate, on compile, revalidate (function units, maybe also grid?)
         # when updating variable attribute
-        self.model.variable_manager.attribute_updated.connect(self._attribute_updated)
+        self.model.variable_manager.attribute_updated.connect(self.attribute_updated)
         
         # send errors in solving to console
         self.solver_intf.solve_error.connect(self.console_message)
     
     def _on_start(self):
+        # todo: fininsh, should load the text etc into eqsys
         self.refresh_solve_button()
         
-    def _attribute_updated(self, variable_name, attribute_name):
-        """
-        if changing unit revalidate equations with that variable 
-        """
+    def func_unit_updated(self):
+        # todo: revalidate all equations which has that func unit
+        pass
+    
+    def attribute_updated(self, variable_name, attribute_name):
+        # if changing unit revalidate equations with that variable 
         if attribute_name == 'unit':
             for eq in self.model.equations.values():
                 if variable_name in eq.variables:
@@ -107,8 +109,17 @@ class MainController(QObject):
                         self.equation_edit.set_indicator(line_num, 0, 0, str(results), False)
 
     def refresh_solve_button(self):
+        # update number of runs
+        grid_len = len(self.model.grid.get_grid())
+        if grid_len == 1:
+            message = "Solve: 1 Run"
+        else:
+            message = f"Solve: {grid_len} Runs"
+        self.view.change_solve_button_text(message)
+        
+        # set enabled/disabled if compiled and validated
         self.view.solve_button.setEnabled(self.compiled and self.validated)
-
+        
     def update_status(self, status, light):
         if light == 'validate':
             light = self.view.validate_light
@@ -168,8 +179,6 @@ class MainController(QObject):
                 eqtransform = EquationTransformer()
                 variable_names, function_names = eqtransform.validate(eq_tree)
                 
-                # check for unit errors
-                
                 # create objects
                 unique_id = str(i)  # line number as id for now
                 equation = Equation(eq_id=unique_id,
@@ -214,74 +223,55 @@ class MainController(QObject):
             self.update_status(1, 'validate')
         else:
             self.update_status(-1, 'validate')
-            
             message = str(val_results)
             self.console_message(message, 'Eqsys')
             
         self.eqsys_widget.refresh_web_widget()
-
+    
     def run_compile(self):
-        # TODO: we need to only run the last commands if nothing fails
+        # TODO: should we clear grid/funcunits/namespace if failing compile?
         text = self.python_edit.text()
         code = str(text)
         namespace = {}
-        
+
+        # try to compile the code
         try:
             compiled_code = compile(code, '<string>', 'exec')
             exec(compiled_code, namespace)
-        except SyntaxError as e:
-            self.console_message(str(e))
+        except (SyntaxError, Exception) as e:
+            if isinstance(e, SyntaxError):
+                compile_error = str(e)
+            else:
+                compile_error = f"Unexpected error: {traceback.format_exc()}"
+            self.console_message(compile_error)
             self.update_status(-1, 'compile')
-            return e
-        except Exception as e:
-            message = f"Unexpected error: {traceback.format_exc()}"
-            self.console_message(message)
-
-            self.update_status(-1, 'compile')
-            return e
+            return
         
-        del namespace['__builtins__']  # remove built-ins from the namespace
-        
-        self.solver_intf.set_namespace(namespace)
-        
-        func_units = {}
-        
-        for name, value in namespace.items():
-            if isinstance(value, types.FunctionType):
-                if hasattr(value, 'unit'):
-                    unit_value = getattr(value, 'unit')
-                    try:
-                        self.ureg[unit_value]
-                    except Exception as e:
-                        message = f"Cannot convert {unit_value} to a unit"
-                        self.console_message(message)
-                        self.update_status(-1, 'compile')
-                        
-                    func_units[name] = unit_value
-               
-        # add to eqsys if we can convert
-        self.model.function_units = func_units
-                    
-        # check if grid is valid
-        if any(isinstance(obj, Grid) for obj in namespace.values()):
-            # Find the Grid instance within the namespace
-            for obj in namespace.values():
-                if isinstance(obj, Grid):
-                    valid_grid = self.model.validate_grid(obj)
-                    
-                    if valid_grid:
-                        self.model.set_grid(obj)
-                    else:
-                        message = "Grid does not match variables in equation system or is overlapping parameter variable"
-                        self.console_message(message)
-                        self.update_status(-1, 'compile')
-                        raise Exception("Grid does not match variables in equation system or is overlapping parameter variable")
-                    break
-            # There is an instance of the Grid class within the namespace
-            self.view.change_solve_button_text(f"Solve: {len(self.model.grid.get_grid())} Runs")
+        # check if function units has valid unit
+        func_units = get_function_units(namespace)
+        if func_units:
+            unit_errors = check_function_units(func_units, self.ureg)
         else:
-            # There is no instance of the Grid class within the namespace
-            self.view.change_solve_button_text("Solve: 1 Run")
+            unit_errors = None
+            
+        # check if grid is valid
+        grid = get_grid(namespace)
+        if grid:
+            grid_errors = check_grid(grid, self.model)
+        else:
+            grid_errors = None
         
-        # if we pass everything
-        self.update_status(1, 'compile')
+        # set data and update status
+        if not (grid_errors or unit_errors):
+            del namespace['__builtins__']
+            
+            self.solver_intf.set_namespace(namespace)
+            self.model.set_function_units(func_units)
+            self.model.set_grid(grid)
+            
+            self.update_status(1, 'compile')
+        else:
+            for message in grid_errors + unit_errors:
+                self.console_message(message)
+            self.update_status(-1, 'compile')
+        
