@@ -112,17 +112,36 @@ class MainController(QObject):
     def update_starting_guess(self, variable_dict):
         # Check if all keys are present in the dict self.model.variables
         missing_variables = [key for key in variable_dict if key not in self.model.variables]
-        
-        # warning about missing variables
-        if missing_variables:
-            self.view.show_error_message(f"The following variables are not present in the equation system: {missing_variables}")
-        
-        # insert starting guesses
+
+        # Variables that are present but not valid for updating
+        invalid_variables = []
+
+        # Variables that have been updated successfully
+        updated_variables = []
+
         for variable, value in variable_dict.items():
-            if variable in self.model.variables and variable:
+            if variable in self.model.variables:
                 # do not update starting guess for parameters and grid variables
                 if variable not in self.model.grid.variables and variable not in self.model.parameter_variables:
                     self.model.variable_manager.update_variable(variable, 'starting_guess', value)
+                    updated_variables.append(variable)
+                else:
+                    invalid_variables.append(variable)
+
+        # Construct error message
+        error_message = ""
+
+        if updated_variables:
+            error_message += f"The following variables were updated with new starting guesses: {', '.join(updated_variables)}.\n"
+
+        if missing_variables:
+            error_message += f"The following variables are not present in the equation system: {', '.join(missing_variables)}.\n"
+
+        if invalid_variables:
+            error_message += f"The following variables could not be updated (they are either grid variables or parameter variables): {', '.join(invalid_variables)}."
+
+        if error_message:
+            self.view.show_error_message(error_message)
             
     def refresh_solve_button(self):
         # update number of runs
@@ -134,11 +153,9 @@ class MainController(QObject):
         self.view.change_solve_button_text(message)
         
         # set enabled/disabled if compiled and validated
-        print(self.compiled, self.validated)
         self.view.solve_button.setEnabled(self.compiled and self.validated)
         
     def update_status(self, status, light):
-        print(status)
         if light == 'validate':
             light = self.view.validate_light
             if status in [-1, 0]:
