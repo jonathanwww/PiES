@@ -14,6 +14,7 @@ class EquationSystem(QObject):
         super().__init__()
         # is set by validate_equation_system
         self.valid = False
+        self.validation_info = {}
         
         # unit registry for variables and validation
         self.ureg = None
@@ -175,9 +176,11 @@ class EquationSystem(QObject):
         else:
             self.valid = False
             
+        self.validation_info = block_status
+        
         return block_status
     
-    def blocking(self) -> list:
+    def blocking(self, return_graph=False) -> list:
         # Get eqs
         eqs = [eq for eq in self.equations.values()]
 
@@ -202,7 +205,14 @@ class EquationSystem(QObject):
             shared_equations = [eq.id for eq in self.equations.values() if var in eq.variables]
             for shared_eq in shared_equations:
                 DG.add_edge(eq, shared_eq)
-
+                
+        # Remove self loops
+        DG.remove_edges_from(nx.selfloop_edges(DG))
+        
         sccs = list(nx.strongly_connected_components(DG))
         sccs.reverse()
-        return sccs
+  
+        if return_graph:
+            return sccs, DG
+        else:    
+            return sccs

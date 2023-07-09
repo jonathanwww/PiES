@@ -112,7 +112,6 @@ class ResultsWidget(QWidget):
             # Get the contents of the columns in the selected row
             contents = {table_widget.horizontalHeaderItem(column).text(): table_widget.item(row, column).text()
                         for column in range(table_widget.columnCount())}
-            print(contents)
             # Emit the signal with the contents of the columns in the selected row
             self.update_starting_guess.emit(contents)
             
