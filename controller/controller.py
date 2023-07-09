@@ -249,6 +249,7 @@ class MainController(QObject):
     def run_solve(self):
         self.solver_thread = SolverThread(self.solver_intf)
         self.solver_thread.start()
+        self.console_message('Solving ended', 'Results')
         
     def run_validation(self):
         val_results = self.model.validate_equation_system()

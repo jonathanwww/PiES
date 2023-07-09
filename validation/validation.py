@@ -30,8 +30,8 @@ class EquationTransformer(Transformer):
             if isinstance(item, Token) and item.type == 'CNAME':
                 self.variables.add(str(item))
             # If the item is a Tree with data var_with_index, add the whole thing to the set of variables
-            elif isinstance(item, Tree) and item.data == 'var_with_index':
-                self.variables.add(''.join(str(child) for child in item.children))
+            # elif isinstance(item, Tree) and item.data == 'var_with_index':
+            #     self.variables.add(''.join(str(child) for child in item.children))
         return items
 
     def function_call(self, items):
@@ -63,6 +63,7 @@ class ValidateUnits(Transformer):
         self.variables = var_dict
         self.functions = func_dict
         self.errors = []
+        print(tree)
         self.transform(tree)
         return self.errors
 
@@ -105,6 +106,9 @@ class ValidateUnits(Transformer):
             return self.function_call(args[0])
         return args[0]
 
+    def neg(self, args):
+        return args[0]
+    
     def term(self, args):
         return args[0]
 
