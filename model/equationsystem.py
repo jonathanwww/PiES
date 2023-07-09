@@ -9,6 +9,7 @@ from validation.validation import ValidateUnits
 
 class EquationSystem(QObject):
     data_changed = pyqtSignal()
+    data_validated = pyqtSignal()
     
     def __init__(self, cache_size=1000):
         super().__init__()
@@ -132,6 +133,7 @@ class EquationSystem(QObject):
         unit_warnings = self.unit_validator.validate(tree=equation.tree,
                                                      var_dict=var_dict,
                                                      func_dict=self.function_units)
+        
         return unit_warnings
     
     def validate_equation_system(self):
@@ -177,6 +179,8 @@ class EquationSystem(QObject):
             self.valid = False
             
         self.validation_info = block_status
+        
+        self.data_validated.emit()
         
         return block_status
     
