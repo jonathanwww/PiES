@@ -1,7 +1,16 @@
 import types
 import pint
+import re
 from PyQt6.QtCore import QThread, pyqtSignal
 from model.util import Grid
+
+
+def clean_text(text):
+    # remove comments
+    text = re.split('#', text)[0]
+    # Remove spaces
+    text = text.replace(' ', '')
+    return text
 
 
 class SolverThread(QThread):

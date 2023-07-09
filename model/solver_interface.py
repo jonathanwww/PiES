@@ -52,9 +52,13 @@ class SolverInterface(QObject):
         
         # prepare
         blocks = self.eqsys.blocking()
-        grid = self.eqsys.grid.get_grid()  # Assuming grid is an instance of a class that has the get_grid() method
-        
+        if self.eqsys.grid is not None:
+            grid = self.eqsys.grid.get_grid()  # Assuming grid is an instance of a class that has the get_grid() method
+        else:
+            grid = [{}]
+            
         for entry in grid:
+            print('ding')
             X = {var.name: None for var in self.eqsys.variables.values()}
             X.update(entry)  # add values from grid vars
 

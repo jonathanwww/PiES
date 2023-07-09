@@ -14,7 +14,7 @@ from model.equationsystem import EquationSystem
 from model.variable import Variable
 from model.equation import Equation
 from validation.validation import EquationTransformer
-from controller.util import check_grid, get_grid, check_function_units, get_function_units, SolverThread
+from controller.util import clean_text, check_grid, get_grid, check_function_units, get_function_units, SolverThread
 from model.result import ResultsManager
 
 
@@ -145,11 +145,12 @@ class MainController(QObject):
             
     def refresh_solve_button(self):
         # update number of runs
-        grid_len = len(self.model.grid.get_grid())
-        if grid_len == 1:
-            message = "Solve: 1 Run"
-        else:
+        if self.model.grid is not None:
+            grid_len = len(self.model.grid.get_grid())
             message = f"Solve: {grid_len} Runs"
+        else:
+            message = "Solve: 1 Run"
+            
         self.view.change_solve_button_text(message)
         
         # set enabled/disabled if compiled and validated
@@ -202,8 +203,7 @@ class MainController(QObject):
         self.equation_edit.warnings = {}
 
         # add all lines if they can parse
-        current_text = text.split()
-
+        current_text = text.split('\n')
         for i, line in enumerate(current_text):
             # clear this line of warnings
             self.equation_edit.clearIndicatorRange(i, 0, i, self.equation_edit.lineLength(i), self.equation_edit.warning_indicator)
@@ -217,7 +217,7 @@ class MainController(QObject):
                 # create objects
                 unique_id = str(i)  # line number as id for now
                 equation = Equation(eq_id=unique_id,
-                                    equation=line,
+                                    equation=clean_text(line),
                                     variables=list(variable_names),
                                     functions=list(function_names),
                                     tree=eq_tree)

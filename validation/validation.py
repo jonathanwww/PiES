@@ -63,7 +63,7 @@ class ValidateUnits(Transformer):
         self.variables = var_dict
         self.functions = func_dict
         self.errors = []
-        print(tree)
+
         self.transform(tree)
         return self.errors
 

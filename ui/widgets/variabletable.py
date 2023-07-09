@@ -98,9 +98,14 @@ class VariableTableWidget(QWidget):
 
     def updateData(self):
         variables = list(self.equation_system.variables.values())
-        grid = list(self.equation_system.grid.variables.keys())
         params = list(self.equation_system.parameter_variables.keys())
-        self.table_model.updateData(variables, params, grid)
+        if self.equation_system.grid is not None:
+            grid = list(self.equation_system.grid.variables.keys())
+            self.table_model.updateData(variables, params, grid)
+        else:
+            self.table_model.updateData(variables, params, [])
+        
+        
 
 
 class VariableFilterProxyModel(QSortFilterProxyModel):
