@@ -178,10 +178,7 @@ class EquationSystemWidget(QWidget):
         self.variable_count_label.setText(f"Variables: {len(self.eqsys.variables)}")
         self.equations_count_label.setText(f"Equations: {len(self.eqsys.equations)}")
         self.param_variable_count_label.setText(f"Parameters: {len(self.eqsys.parameter_variables)}")
-        if self.eqsys.grid is not None:
-            self.grid_count_label.setText(f"Grid: {len(self.eqsys.grid.variables)}")
-        else:
-            self.grid_count_label.setText(f"Grid: 0")
+        self.grid_count_label.setText(f"Grid: {len(self.eqsys.grid.variables)}")
         self.function_units_count_label.setText(f"Function Units: {len(self.eqsys.function_units)}")
 
     def toggle_eqinfo_box(self):

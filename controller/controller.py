@@ -119,7 +119,14 @@ class MainController(QObject):
         # Variables that have been updated successfully
         updated_variables = []
 
+        # Variables with value as 'None'
+        none_variables = []
+
         for variable, value in variable_dict.items():
+            if value == 'None':
+                none_variables.append(variable)
+                continue
+
             if variable in self.model.variables:
                 # do not update starting guess for parameters and grid variables
                 if variable not in self.model.grid.variables and variable not in self.model.parameter_variables:
@@ -140,17 +147,19 @@ class MainController(QObject):
         if invalid_variables:
             error_message += f"The following variables could not be updated (they are either grid variables or parameter variables): {', '.join(invalid_variables)}."
 
+        if none_variables:
+            error_message += f"The following variables were not updated as they have a 'None' value: {', '.join(none_variables)}."
+
         if error_message:
             self.view.show_error_message(error_message)
-            
+
     def refresh_solve_button(self):
         # update number of runs
-        if self.model.grid is not None:
-            grid_len = len(self.model.grid.get_grid())
-            message = f"Solve: {grid_len} Runs"
-        else:
+        grid_len = len(self.model.grid.get_grid())
+        if grid_len == 1:
             message = "Solve: 1 Run"
-            
+        else:
+            message = f"Solve: {grid_len} Runs"
         self.view.change_solve_button_text(message)
         
         # set enabled/disabled if compiled and validated

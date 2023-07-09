@@ -39,10 +39,7 @@ class StatusBarWidget(QWidget):
         
         num_eq = len(self.equation_system.equations)
         num_var = len(self.equation_system.variables)
-        if self.equation_system.grid is not None:
-            num_grid = len(self.equation_system.grid.variables)
-        else:
-            num_grid = 0
+        num_grid = len(self.equation_system.grid.variables)
         num_param = len(self.equation_system.parameter_variables)
         num_norm = max(num_var - num_grid - num_param, 0)
         self.data_label.setText(

@@ -58,11 +58,11 @@ def check_grid(grid, eqsys):
 
 
 def get_grid(namespace):
-    # Find the Grid instance within the namespace
+    # Find the Grid instance within the namespace or return an empty grid
     if any(isinstance(obj, Grid) for obj in namespace.values()):
         for obj in namespace.values():
             if isinstance(obj, Grid):
                 grid = obj
                 return grid
     else:
-        return None
+        return Grid()
