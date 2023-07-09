@@ -247,10 +247,13 @@ class MainController(QObject):
             except (UnexpectedCharacters, UnexpectedToken) as e:
                 # continue to next line
                 pass
+            
+        # set compile and validate button to yellow status
+        self.update_status(0, 'validate')
+        self.update_status(0, 'compile')
 
-        self.update_status(0, 'validate')     
- 
     def python_editor_change(self, text):
+        # set compile and validate button to yellow status
         self.update_status(0, 'validate')
         self.update_status(0, 'compile')
 
