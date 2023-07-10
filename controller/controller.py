@@ -74,8 +74,8 @@ class MainController(QObject):
 
         # signal from top bar buttons
         self.view.solve_button.clicked.connect(self.run_solve)
-        self.view.compile_button.clicked.connect(self.run_compile)
-        self.view.validate_button.clicked.connect(self.run_validation)
+        self.view.validate_compile_button.clicked.connect(self.run_compile)
+        self.view.validate_compile_button.clicked.connect(self.run_validation)
         
         # when updating variable attribute
         self.model.variable_manager.attribute_updated.connect(self.attribute_updated)
@@ -273,8 +273,8 @@ class MainController(QObject):
             self.update_status(-1, 'validate')
             message = str(val_results)
             self.console_message(message, 'Eqsys')
-            
-        self.eqsys_widget.refresh_web_widget()
+             
+        # self.eqsys_widget.refresh_web_widget()
     
     def run_compile(self):
         # TODO: should we clear grid/funcunits/namespace if failing compile?

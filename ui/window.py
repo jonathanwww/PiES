@@ -1,7 +1,6 @@
-from PyQt6.QtWidgets import QMainWindow, QTextEdit, QDockWidget, QSizePolicy, QStatusBar, QMessageBox, QLabel
-
+from PyQt6.QtWidgets import QMainWindow, QTextEdit, QDockWidget, QSizePolicy, QStatusBar, QMessageBox, QLabel,  QWidget, QToolBar, QVBoxLayout, QPushButton, QFrame
+from PyQt6.QtGui import QFont
 from ui.menu import MenuManager
-from PyQt6.QtWidgets import QWidget, QToolBar, QVBoxLayout, QPushButton, QFrame
 from PyQt6.QtGui import QColor, QPainter, QBrush
 from PyQt6.QtCore import Qt
 
@@ -129,26 +128,54 @@ class MainWindow(QMainWindow):
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
 
-    def _setup_top_bar(self):
+    def _setup_top_bar(self):        
+        # Change the font size
+        font = QFont()
+        font.setPointSize(10)  # Or whatever size you want.
+
         # Create the first status light and button
         self.compile_light = Light()
         self.compile_light.setFixedSize(15, 15)
         self.set_light_color(self.compile_light, 'yellow')  # Set initial color
 
-        self.compile_button = QPushButton("Compile")
+        # Create label for the first light
+        self.compile_label = QLabel("py")
+        self.compile_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.compile_label.setFont(font)
 
-        self.top_toolbar.addWidget(self.compile_light)
-        self.top_toolbar.addWidget(self.compile_button)
+        # Add the light and the label to a vertical layout
+        self.compile_layout = QVBoxLayout()
+        self.compile_layout.addWidget(self.compile_light)
+        self.compile_layout.addWidget(self.compile_label)
+
+        # Add the layout to the toolbar
+        self.compile_widget = QWidget()
+        self.compile_widget.setLayout(self.compile_layout)
+        self.top_toolbar.addWidget(self.compile_widget)
 
         # Create the second status light and button
         self.validate_light = Light()
         self.validate_light.setFixedSize(15, 15)
         self.set_light_color(self.validate_light, 'yellow')  # Set initial color
 
-        self.validate_button = QPushButton("Validate")
+        # Create label for the second light
+        self.validate_label = QLabel("eq")
+        self.validate_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.validate_label.setFont(font)
 
-        self.top_toolbar.addWidget(self.validate_light)
-        self.top_toolbar.addWidget(self.validate_button)
+        # Add the light and the label to a vertical layout
+        self.validate_layout = QVBoxLayout()
+        self.validate_layout.addWidget(self.validate_light)
+        self.validate_layout.addWidget(self.validate_label)
+
+        # Add the layout to the toolbar
+        self.validate_widget = QWidget()
+        self.validate_widget.setLayout(self.validate_layout)
+        self.top_toolbar.addWidget(self.validate_widget)
+        
+        # add button
+        self.validate_compile_button = QPushButton("Validate and compile")
+        self.top_toolbar.addWidget(self.validate_compile_button)
 
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
