@@ -12,4 +12,3 @@ PyQt6-WebEngine
 pyvis
 pyqtgraph
 autograd
-pyqtdarktheme

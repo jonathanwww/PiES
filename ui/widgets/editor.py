@@ -19,7 +19,7 @@ class BaseEditor(QsciScintilla):
         # Default styles 
         self.styles = {
             "font-family": "Courier",
-            "font-size": 12,
+            "font-size": 15,
             "caret-color": QColor(247, 247, 241),
             "caret-width": 2,
             "selection-background-color": QColor(61, 61, 52),
@@ -47,12 +47,10 @@ class BaseEditor(QsciScintilla):
 
         # Set margin for line numbers
         self.setMarginsFont(font)
-        self.setMarginsForegroundColor(QColor(95, 97, 100))  #
         # todo: bugged, needs to be set dynamically. set also so numbers starts all the way to the left
-        self.updateLineNumberMarginWidth()
-        self.textChanged.connect(self.updateLineNumberMarginWidth)
-
-        self.setMarginsBackgroundColor(QColor(49, 51, 53))
+        self.setMarginWidth(0, 20)
+        self.setMarginLineNumbers(0, True)
+        self.setMarginsBackgroundColor(QColor("#cccccc"))
 
         # Enable current line highlighting
         self.setCaretLineVisible(True)
@@ -90,12 +88,6 @@ class BaseEditor(QsciScintilla):
         # for storing errors/warnings in editor
         self.errors = {}
         self.warnings = {}
-
-    def updateLineNumberMarginWidth(self):
-        line_count = self.lines()
-        digits = len(str(line_count)) if line_count > 0 else 1
-        margin_width = self.fontMetrics().horizontalAdvance('9') * (digits+1)
-        self.setMarginWidth(0, margin_width)
 
     def setTextFromDialog(self):
         dlg = QFileDialog()
@@ -190,14 +182,6 @@ class PythonEditor(BaseEditor):
         self.lexer.setDefaultFont(self.font())
         self.setLexer(self.lexer)
 
-        self.lexer.setPaper(QColor(43, 43, 43))
-        self.lexer.setFont(QFont('Courier', 12))
-        self.lexer.setColor(QColor("darkgrey"), QsciLexerPython.Comment)
-        self.lexer.setColor(QColor("orange"), QsciLexerPython.Keyword)
-        self.lexer.setColor(QColor("yellow"), QsciLexerPython.FunctionMethodName)
-        self.lexer.setColor(QColor("green"), QsciLexerPython.SingleQuotedString)
-        self.lexer.setColor(QColor("green"), QsciLexerPython.DoubleQuotedString)
-
         # Load the default content
         pth = os.path.dirname(__file__)
         pth = os.path.join(pth, "../default_text/editor.default.python.txt")
@@ -225,8 +209,6 @@ class EquationEditor(BaseEditor):
         
         # set lexer
         self.setLexer(self.lexer)
-        self.lexer.setPaper(QColor(43, 43, 43))
-        #self.lexer.setFont(QFont('Courier', 12))
 
         # Load the default content
         pth = os.path.dirname(__file__)
@@ -272,8 +254,6 @@ class ConsoleEditor(BaseEditor):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setReadOnly(True)
-        self.setPaper(QColor(43, 43, 43))
-
         
     def insert(self, text):
         self.append(text + "\n")
