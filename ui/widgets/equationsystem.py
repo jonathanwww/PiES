@@ -150,7 +150,7 @@ class EquationSystemWidget(QWidget):
         nodes = {}
         self.web_widget.setHtml("")
 
-        network = Network(height="500", width="100%", directed=True)
+        network = Network(height="500", width="100%", directed=True, notebook=True)
 
         for block_index, (block, validation_result) in enumerate(zip(blocking_results, validation_results)):
             status = validation_results[block_index][0]
