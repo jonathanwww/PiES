@@ -9,13 +9,11 @@ from validation.validation import ValidateUnits
 
 class EquationSystem(QObject):
     data_changed = pyqtSignal()
-    data_validated = pyqtSignal()
     
     def __init__(self, cache_size=1000):
         super().__init__()
         # is set by validate_equation_system
         self.valid = False
-        self.validation_info = {}
         
         # unit registry for variables and validation
         self.ureg = None
@@ -133,7 +131,6 @@ class EquationSystem(QObject):
         unit_warnings = self.unit_validator.validate(tree=equation.tree,
                                                      var_dict=var_dict,
                                                      func_dict=self.function_units)
-        
         return unit_warnings
     
     def validate_equation_system(self):
@@ -178,13 +175,9 @@ class EquationSystem(QObject):
         else:
             self.valid = False
             
-        self.validation_info = block_status
-        
-        self.data_validated.emit()
-        
         return block_status
     
-    def blocking(self, return_graph=False) -> list:
+    def blocking(self) -> list:
         # Get eqs
         eqs = [eq for eq in self.equations.values()]
 
@@ -209,14 +202,7 @@ class EquationSystem(QObject):
             shared_equations = [eq.id for eq in self.equations.values() if var in eq.variables]
             for shared_eq in shared_equations:
                 DG.add_edge(eq, shared_eq)
-                
-        # Remove self loops
-        DG.remove_edges_from(nx.selfloop_edges(DG))
-        
+
         sccs = list(nx.strongly_connected_components(DG))
         sccs.reverse()
-  
-        if return_graph:
-            return sccs, DG
-        else:    
-            return sccs
+        return sccs

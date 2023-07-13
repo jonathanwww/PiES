@@ -14,7 +14,7 @@ from model.equationsystem import EquationSystem
 from model.variable import Variable
 from model.equation import Equation
 from validation.validation import EquationTransformer
-from controller.util import clean_text, check_grid, get_grid, check_function_units, get_function_units, SolverThread
+from controller.util import check_grid, get_grid, check_function_units, get_function_units, SolverThread
 from model.result import ResultsManager
 
 
@@ -74,8 +74,8 @@ class MainController(QObject):
 
         # signal from top bar buttons
         self.view.solve_button.clicked.connect(self.run_solve)
-        self.view.validate_compile_button.clicked.connect(self.run_compile)
-        self.view.validate_compile_button.clicked.connect(self.run_validation)
+        self.view.compile_button.clicked.connect(self.run_compile)
+        self.view.validate_button.clicked.connect(self.run_validation)
         
         # when updating variable attribute
         self.model.variable_manager.attribute_updated.connect(self.attribute_updated)
@@ -119,14 +119,7 @@ class MainController(QObject):
         # Variables that have been updated successfully
         updated_variables = []
 
-        # Variables with value as 'None'
-        none_variables = []
-
         for variable, value in variable_dict.items():
-            if value == 'None':
-                none_variables.append(variable)
-                continue
-
             if variable in self.model.variables:
                 # do not update starting guess for parameters and grid variables
                 if variable not in self.model.grid.variables and variable not in self.model.parameter_variables:
@@ -147,12 +140,9 @@ class MainController(QObject):
         if invalid_variables:
             error_message += f"The following variables could not be updated (they are either grid variables or parameter variables): {', '.join(invalid_variables)}."
 
-        if none_variables:
-            error_message += f"The following variables were not updated as they have a 'None' value: {', '.join(none_variables)}."
-
         if error_message:
             self.view.show_error_message(error_message)
-
+            
     def refresh_solve_button(self):
         # update number of runs
         grid_len = len(self.model.grid.get_grid())
@@ -212,7 +202,8 @@ class MainController(QObject):
         self.equation_edit.warnings = {}
 
         # add all lines if they can parse
-        current_text = text.split('\n')
+        current_text = text.split()
+
         for i, line in enumerate(current_text):
             # clear this line of warnings
             self.equation_edit.clearIndicatorRange(i, 0, i, self.equation_edit.lineLength(i), self.equation_edit.warning_indicator)
@@ -226,7 +217,7 @@ class MainController(QObject):
                 # create objects
                 unique_id = str(i)  # line number as id for now
                 equation = Equation(eq_id=unique_id,
-                                    equation=clean_text(line),
+                                    equation=line,
                                     variables=list(variable_names),
                                     functions=list(function_names),
                                     tree=eq_tree)
@@ -247,13 +238,10 @@ class MainController(QObject):
             except (UnexpectedCharacters, UnexpectedToken) as e:
                 # continue to next line
                 pass
-            
-        # set compile and validate button to yellow status
-        self.update_status(0, 'validate')
-        self.update_status(0, 'compile')
 
+        self.update_status(0, 'validate')     
+ 
     def python_editor_change(self, text):
-        # set compile and validate button to yellow status
         self.update_status(0, 'validate')
         self.update_status(0, 'compile')
 
@@ -261,7 +249,6 @@ class MainController(QObject):
     def run_solve(self):
         self.solver_thread = SolverThread(self.solver_intf)
         self.solver_thread.start()
-        self.console_message('Solving ended', 'Results')
         
     def run_validation(self):
         val_results = self.model.validate_equation_system()
@@ -273,8 +260,8 @@ class MainController(QObject):
             self.update_status(-1, 'validate')
             message = str(val_results)
             self.console_message(message, 'Eqsys')
-             
-        # self.eqsys_widget.refresh_web_widget()
+            
+        self.eqsys_widget.refresh_web_widget()
     
     def run_compile(self):
         # TODO: should we clear grid/funcunits/namespace if failing compile?

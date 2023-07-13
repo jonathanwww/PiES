@@ -1,16 +1,7 @@
 import types
 import pint
-import re
 from PyQt6.QtCore import QThread, pyqtSignal
 from model.util import Grid
-
-
-def clean_text(text):
-    # remove comments
-    text = re.split('#', text)[0]
-    # Remove spaces
-    text = text.replace(' ', '')
-    return text
 
 
 class SolverThread(QThread):
@@ -58,11 +49,11 @@ def check_grid(grid, eqsys):
 
 
 def get_grid(namespace):
-    # Find the Grid instance within the namespace or return an empty grid
+    # Find the Grid instance within the namespace
     if any(isinstance(obj, Grid) for obj in namespace.values()):
         for obj in namespace.values():
             if isinstance(obj, Grid):
                 grid = obj
                 return grid
     else:
-        return Grid()
+        return None

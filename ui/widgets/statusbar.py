@@ -10,7 +10,6 @@ class StatusBarWidget(QWidget):
 
         # refresh on eq sys update
         self.equation_system.data_changed.connect(self.update_widget)
-        self.equation_system.data_validated.connect(self.update_widget)
         
         # shows the status during solving
         self.solver_interface.solve_status.connect(self.update_solving_status)
@@ -33,7 +32,6 @@ class StatusBarWidget(QWidget):
     def update_widget(self):
         # Update display based on new model data
         # todo: finish ready status. needs to check for compile as well
-        
         status = 'Ready' if self.equation_system.valid else 'Not ready'
         self.status_label.setText(status)
         

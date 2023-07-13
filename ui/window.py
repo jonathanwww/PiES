@@ -1,8 +1,8 @@
-from PyQt6.QtWidgets import QMainWindow, QTextEdit, QDockWidget, QSizePolicy, QStatusBar, QMessageBox, QLabel
+from PyQt6.QtWidgets import QMainWindow, QTextEdit, QDockWidget, QSizePolicy, QStatusBar, QMessageBox, QStyle
 
 from ui.menu import MenuManager
 from PyQt6.QtWidgets import QWidget, QToolBar, QVBoxLayout, QPushButton, QFrame
-from PyQt6.QtGui import QColor, QPainter, QBrush
+from PyQt6.QtGui import QColor, QPainter, QBrush, QIcon
 from PyQt6.QtCore import Qt
 
 
@@ -112,7 +112,27 @@ class MainWindow(QMainWindow):
         # file
         self.current_file_path = None
         self.is_saved = True
-        
+
+        # self.setStyleSheet("""
+        #         QMainWindow{
+        #             background-color: black;
+        #             color: white;
+        #             border: 0.1px solid black;
+        #         }
+        #         QWidget{
+        #             background-color: black;
+        #             color: white;
+        #             border: 0.1px solid black;
+        #         }
+        #         QPushButton{
+        #             background-color: black;
+        #             color: white;
+        #             border: 0.1px solid black;
+        #             padding: 10px;
+        #         }
+        #         """
+        #                   )
+
         # set toolbars
         self.top_toolbar = self.create_toolbar(Qt.ToolBarArea.TopToolBarArea)
         self._setup_top_bar()
@@ -154,7 +174,10 @@ class MainWindow(QMainWindow):
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.top_toolbar.addWidget(spacer)
 
-        self.solve_button = QPushButton('Solve: 1 Run')
+        self.solve_button = QPushButton()
+        pixmapi = QStyle.StandardPixmap.SP_MediaPlay
+        icon = self.style().standardIcon(pixmapi)
+        self.solve_button.setIcon(QIcon(icon))
         self.top_toolbar.addWidget(self.solve_button)
 
     def set_light_color(self, light, color_name):
@@ -170,10 +193,11 @@ class MainWindow(QMainWindow):
         return toolbar
 
     def add_button_to_toolbar(self, dock_name, toolbar):
-        button = QPushButton(dock_name)
+        button = QPushButton()
+        button.setIcon(QIcon("ui/icons/" + dock_name + ".png"))
         button.clicked.connect(lambda: self.reset_button_text(dock_name))
         button.clicked.connect(lambda: self.dock_manager.toggle_dock(dock_name))
-        button.setProperty("original_text", dock_name)
+        #button.setProperty("original_text", dock_name)
 
         if dock_name == "Output":
             spacer = QWidget()
