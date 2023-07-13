@@ -112,7 +112,6 @@ class ResultsWidget(QWidget):
             # Get the contents of the columns in the selected row
             contents = {table_widget.horizontalHeaderItem(column).text(): table_widget.item(row, column).text()
                         for column in range(table_widget.columnCount())}
-            print(contents)
             # Emit the signal with the contents of the columns in the selected row
             self.update_starting_guess.emit(contents)
             
@@ -225,8 +224,9 @@ class ResultsWidget(QWidget):
 
             # Set cell values
             for j, var in enumerate(selected_variables):
-                value = result.get(var, 0.0)
-                formatted_value = self.format_value(value)
+                # if we cant find the var set it to None
+                value = result.get(var, "None")
+                formatted_value = self.format_value(value) if value != "None" else value
                 table_widget.setItem(i, j, QTableWidgetItem(formatted_value))
 
         return table_widget

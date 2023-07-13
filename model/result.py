@@ -7,7 +7,6 @@ class ResultsManager(QObject):
     def __init__(self):
         super().__init__()
         self.entries = []
-        # todo: remove this and adjust results widget
         self.all_variables = set()  # a set of all the key elements in the dictionaries in all_results
 
     def _updated(self):

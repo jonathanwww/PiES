@@ -1,3 +1,4 @@
+import time
 import autograd.numpy as np
 from model.solvers import solver_wrapper
 from PyQt6.QtCore import QObject, pyqtSignal
@@ -15,7 +16,7 @@ class SolverInterface(QObject):
         self.results_manager = results_manager
         
         # selects the solver from the solver wrapper
-        self.method = 0
+        self.method = 1
         
         # for sending fail information
         self.current_block_info = ""
@@ -36,15 +37,24 @@ class SolverInterface(QObject):
         
     def set_solver(self, solver: int):
         self.method = solver
-    
+
     def solve(self):
+        start_time = time.time()
+
         try:
             self._solve()
         except Exception as e:
             self.status('Failed')
             self.solve_error.emit(str(e), 'Output')
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            self.status('Failed after {:.2f} seconds'.format(elapsed_time))
             return
-        self.status('Finished')
+
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+
+        self.status('Finished in {:.2f} seconds'.format(elapsed_time))
         
     def _solve(self) -> None:
         # create new entry for storing results
