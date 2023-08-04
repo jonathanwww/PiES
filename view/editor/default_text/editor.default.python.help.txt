@@ -1,0 +1,8 @@
+# You can create differential equations with a function.
+# Mark it with the decorator, then it will be passed to the
+# differential equation solver. You can use multiple decorators
+@units(['second', 'meter'], 'dimensionless')
+@differentiaL_equation
+def my_differential_equation(t, y):
+    dydt = t * y
+    return dydt

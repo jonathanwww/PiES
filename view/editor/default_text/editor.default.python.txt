@@ -1,0 +1,13 @@
+import numpy as np
+
+"""you can reference the equation system object with: EquationSystem"""
+
+# set variable starting guess
+# for i, variable in enumerate(EquationSystem.variables):
+#    if 'X' in variable.name:
+#        variable.starting_guess = i*3
+ 
+print(EquationSystem.equations)
+print(EquationSystem.variables)
+print(EquationSystem.functions)
+print(EquationSystem.parameters)

@@ -1,0 +1,12 @@
+{
+    "general": {
+        "wrap_mode": false,
+        "autocomplete": true,
+        "font": "Arial",
+        "font_size": 12
+    },
+    "model": {
+        "cache_size": 500,
+        "ureg": "SI"
+    }
+}

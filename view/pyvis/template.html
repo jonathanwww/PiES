@@ -1,0 +1,295 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        <script src="lib/bindings/utils.js"></script>
+        <link href="lib/vis-9.1.2/vis-network.css" rel="stylesheet">
+        <script src="lib/vis-9.1.2/vis-network.min.js"></script>
+        <link href="lib/tom-select/tom-select.css" rel="stylesheet">
+        <script src="lib/tom-select/tom-select.complete.min.js"></script>
+    </head>
+        <style>
+             #mynetwork {
+                 width: 100%;
+                 height: 100vh;
+                 background-color: #333;
+                 border: 0 solid lightgray;
+                 position: relative;
+                 float: left;
+                 color:#fff !important;
+             }
+        </style>
+    <body style="margin:0 !important; padding:0 !important; overflow: hidden !important;">
+        <div style="display:none;">
+                <div class="row no-gutters">
+                  <div class="col-3 pb-2" >
+                    <select
+                            class="form-select"
+                            aria-label="Default select example"
+                            onchange="updateFilter(value, 'item')"
+                            id="select-item"
+                        >
+                        <option value="">Select a network item</option>
+                        <option value="edge">edge</option>
+                        <option value="node" selected>node</option>
+                    </select>
+                  </div>
+                  <div class="col-3 pb-2">
+                    <select
+                            class="form-select"
+                            aria-label="Default select example"
+                            onchange="updateFilter(value, 'property')"
+                            id="select-property"
+                        >
+                        <option value="">Select a property...</option>
+                    </select>
+                  </div>
+                  <div class="col-3 pb-2">
+                    <select
+                            class="form-select"
+                            aria-label="Default select example"
+                            id="select-value"
+                        >
+                        <option value="">Select value(s)...</option>
+                    </select>
+                  </div>
+                  <div class="col-1 pb-2">
+                    <button type="button" class="btn btn-primary btn-block" onclick="highlightFilter(filter);">Filter</button>
+                  </div>
+                  <div class="col-2 pb-2">
+                    <button type="button" class="btn btn-primary btn-block" onclick="clearFilter(true)">Reset Selection</button>
+                  </div>
+                </div>
+              </div>
+        <div id="mynetwork"></div>
+
+        <script type="text/javascript">
+
+              // initialize global variables.
+              var edges;
+              var nodes;
+              var allNodes;
+              var allEdges;
+              var nodeColors;
+              var originalNodes;
+              var network;
+              var container;
+              var options, data;
+              var filter = {
+                  item : '',
+                  property : '',
+                  value : []
+              };
+
+              
+              // explicitly using onItemAdd and this function as we need to save multiple values
+              let updateValueFilter = function() {
+                  return function () {
+                  filter['value'].push(arguments[0])
+                  }
+              }
+
+              let valueControl = new TomSelect("#select-value",{
+                  maxItems: null,
+                  valueField: 'id',
+                  labelField: 'title',
+                  searchField: 'title',
+                  create: false,
+                  sortField: {
+                      field: "text",
+                      direction: "asc"
+                  },
+                  onItemAdd: updateValueFilter()
+              });
+
+              let addValues = function() {
+                  return function () {
+                      // clear the current value options and add the selected attribute values
+                      // tom-select handles duplicates
+                      let selectedProperty = arguments[0];
+                      valueControl.clear();
+                      valueControl.clearOptions();
+                      filter['value'] = []
+                      if (filter['item'] === 'node') {
+                          for (let each in allNodes) {
+                              valueControl.addOption({
+                                  id:allNodes[each][selectedProperty],
+                                  title:allNodes[each][selectedProperty]
+                              })
+                          }
+                      }
+                      else if (filter['item'] === 'edge') {
+                          for (let each in allEdges) {
+                              valueControl.addOption({
+                                  id:allEdges[each][selectedProperty],
+                                  title:allEdges[each][selectedProperty]
+                              })
+                          }
+                      }
+                  }
+              };
+
+              let propControl = new TomSelect("#select-property",{
+                  valueField: 'id',
+                  labelField: 'title',
+                  searchField: 'title',
+                  create: false,
+                  sortField: {
+                      field: "text",
+                      direction: "asc"
+                  },
+                  onItemAdd: addValues()
+              });
+
+              let addProperties = function() {
+                    return function () {
+                        clearFilter(false)
+                        if (arguments[0] === 'edge') {
+                            for (let each in allEdges) {
+                                if (allEdges.hasOwnProperty(each)) {
+                                    for (let eachProp in allEdges[each]) {
+                                        if (allEdges[each].hasOwnProperty(eachProp)) {
+                                            propControl.addOption({id: eachProp, title: eachProp})
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        else if (arguments[0] === 'node') {
+                            for (let each in allNodes) {
+                                if (allNodes.hasOwnProperty(each)) {
+                                    for (let eachProp in allNodes[each]) {
+                                        if (allNodes[each].hasOwnProperty(eachProp)
+                                            && (eachProp !== 'hidden' && eachProp !== 'savedLabel'
+                                                && eachProp !== 'hiddenLabel')) {
+                                            propControl.addOption({id: eachProp, title: eachProp})
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                };
+              
+
+              let itemControl = new TomSelect("#select-item",{
+                    create: false,
+                    sortField:{
+                        field: "text",
+                        direction: "asc"
+                    },
+                    onItemAdd: addProperties()
+                });
+              function getProperties() {
+                    // Get all options from the property dropdown
+                    var options = propControl.options;
+                    
+                    // Retrieve the property titles
+                    var propertyTitles = Object.values(options).map(option => option.title);
+                    
+                    return propertyTitles;
+                }
+              function getValuesForProperty(propertyName) {
+                    var values = [];
+                    for (let each in allNodes) {
+                        if (allNodes.hasOwnProperty(each)) {
+                            let value = allNodes[each][propertyName];
+                            if (!values.includes(value)) {
+                                values.push(value);
+                            }
+                        }
+                    }
+                    return values;
+                }
+    
+              function applyValueFilter(selectedProperty, selectedValue) {
+                    // Update the filter object
+                    filter['value'] = [selectedValue];  // we set it as an array as the existing code seems to suggest it's an array
+                    
+                    updateFilter('node', 'item')
+                    updateFilter(selectedProperty, 'property')
+                    
+                    // Call the highlightFilter function to apply the filtering
+                    highlightFilter(filter)
+                }
+
+              function clearFilter(reset) {
+                  // utility function to clear all the selected filter options
+                  // if reset is set to true, the existing filter will be removed
+                  // else, only the dropdown options are cleared
+                  propControl.clear();
+                  propControl.clearOptions();
+                  valueControl.clear();
+                  valueControl.clearOptions();
+                  filter = {
+                      item : '',
+                      property : '',
+                      value : []
+                  }
+                  if (reset) {
+                      itemControl.clear();
+                      filterHighlight({nodes: []})
+                  }
+              }
+
+              function updateFilter(value, key) {
+                  // key could be 'item' or 'property' and value is as selected in dropdown
+                  filter[key] = value
+              }
+              
+              // This method is responsible for drawing the graph, returns the drawn network
+              function drawGraph() {
+                  var container = document.getElementById('mynetwork');
+                  // parsing and collecting nodes and edges from the python
+                  nodes = new vis.DataSet([{}]);
+                  edges = new vis.DataSet([{}]);
+
+                  nodeColors = {};
+                  allNodes = nodes.get({ returnType: "Object" });
+                  for (nodeId in allNodes) {
+                    nodeColors[nodeId] = allNodes[nodeId].color;
+                  }
+                  allEdges = edges.get({ returnType: "Object" });
+                  // adding nodes and edges to the graph
+                  data = {nodes: nodes, edges: edges};
+
+                  var options = {
+    "configure": {
+        "enabled": false
+    },
+    "edges": {
+        "color": {
+            "inherit": true
+        },
+        "smooth": {
+            "enabled": true,
+            "type": "dynamic"
+        }
+    },
+    "interaction": {
+        "dragNodes": true,
+        "hideEdgesOnDrag": false,
+        "hideNodesOnDrag": false,
+        "hover": true,
+        "selectable": false,
+        "selectConnectedEdges": false,
+        "hoverConnectedEdges": false
+      },
+      "physics": {
+        "barnesHut": {
+          "springLength": 100,
+          "springConstant": 0.095,
+          "avoidOverlap": 0.22
+        },
+        "minVelocity": 0.75
+      }
+};
+                  
+    // add properties for 'node' after graph is drawn
+    addProperties()('node');
+                  network = new vis.Network(container, data, options);
+                  return network;
+              }
+              drawGraph();
+        </script>
+</body>
+</html>

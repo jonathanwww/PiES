@@ -6,9 +6,9 @@ networkx~=3.1
 coolprop
 pint~=0.22
 PyQt6
-lark
 PyQt6-QScintilla
 PyQt6-WebEngine
 pyvis
 pyqtgraph
 autograd
+pyqtdarktheme
