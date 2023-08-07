@@ -24,7 +24,7 @@ class NameCollector(ast.NodeVisitor):
     def __init__(self):
         self.var_names = set()
         self.func_names = set()
-        self.current_function = None
+        self.current_function = False
 
     def _reset(self):
         self.var_names = set()
@@ -36,18 +36,23 @@ class NameCollector(ast.NodeVisitor):
         return self.var_names, self.func_names
 
     def visit_Name(self, node):
-        if self.current_function is None:
-            self.var_names.add(node.id)
+        self.var_names.add(node.id)
         self.generic_visit(node)
 
     def visit_Call(self, node):
-        self.current_function = node
+        # set function name
         if isinstance(node.func, ast.Name):
             self.func_names.add(node.func.id)
         elif isinstance(node.func, ast.Attribute):
             self.func_names.add(node.func.attr)
-        self.generic_visit(node)
-        self.current_function = None
+            
+        # process arguments and keywords with current_function flag
+        self.current_function = True
+        for arg in node.args:
+            self.visit(arg)
+        for keyword in node.keywords:
+            self.visit(keyword.value)
+        self.current_function = False
 
 
 class Counter(QObject):
