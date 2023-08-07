@@ -246,7 +246,12 @@ class EquationEditor(BaseEditor):
         self.lexer.setPaper(QColor("#222"))
         self.lexer.setColor(QColor("darkgrey"), QsciLexerPython.Comment)
         self.lexer.setColor(QColor("orange"), QsciLexerPython.Keyword)
+        self.lexer.setColor(QColor("orange"), QsciLexerPython.Identifier)
+        # self.lexer.setColor(QColor("orange"), QsciLexerPython.Operator)  todo: operators or indentifiers?
+        self.lexer.setColor(QColor("green"), QsciLexerPython.Number)
         self.lexer.setColor(QColor("yellow"), QsciLexerPython.FunctionMethodName)
+        self.lexer.setColor(QColor("green"), QsciLexerPython.SingleQuotedString)
+        self.lexer.setColor(QColor("green"), QsciLexerPython.DoubleQuotedString)
         
         # Load the default content
         pth = os.path.dirname(__file__)
