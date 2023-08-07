@@ -84,7 +84,7 @@ class Counter(QObject):
                 del self.objects[name]
 
     def insert(self, name: str, obj=None):
-        """ add an object to be assoicated with the name """
+        """ insert and potentially add an object to be assoicated with the name """
         if obj:
             self.objects[name] = obj
         self._increase_counter(name)
@@ -123,8 +123,8 @@ class GridManager(QObject):
         self.variables[var_name] = values
         self._data_updated()
 
-    def remove(self, var_name):
-        del self.variables[var_name]
+    def clear(self):
+        self.variables.clear()
         self._data_updated()
 
     def get_grid(self):

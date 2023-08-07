@@ -5,5 +5,6 @@ print(EqSys.variables)
 print(EqSys.parameters)
 print(EqSys.functions)
 
+print(EqSys.grid.get_grid())
 for entry in Results.entries.values():
     print(entry.variables, entry.data)

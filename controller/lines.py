@@ -57,7 +57,7 @@ class LinesManager(QObject):
         elif isinstance(tree.body[0], ast.Assign):
             parameter_name = ast.unparse(tree.body[0].targets[0])
             self.add_parameter.emit(parameter_name, tree.body[0])
-
+            
     @pyqtSlot(str)
     def unique_parsed_line_removed(self, name):
         """ when a unique parsed line is removed from the parsed_line_counter """
@@ -71,7 +71,7 @@ class LinesManager(QObject):
         elif isinstance(tree.body[0], ast.Assign):
             parameter_name = ast.unparse(tree.body[0].targets[0])
             self.remove_parameter.emit(parameter_name)
-    
+            
     @pyqtSlot(str)
     def unique_line_added(self, name):
         """ new unique line added in editor, try to parse it and add to unique parsed lines"""
@@ -105,10 +105,10 @@ class LinesManager(QObject):
         current_line_num = self.editor.getCursorPosition()[0]
         old_line = self.previous_state[current_line_num].rstrip('\n')
         new_line = self.editor.text(current_line_num).rstrip('\n').strip()
-        
+
         if old_line != new_line:
-            self.line_counter.insert(new_line)
             self.line_counter.delete(old_line)
+            self.line_counter.insert(new_line)
         
         self.previous_state[current_line_num] = new_line
 
@@ -122,9 +122,9 @@ class LinesManager(QObject):
         added_lines = [l.lstrip('+ ') for l in diff if l.startswith('+ ')]
         removed_lines = [l.lstrip('- ') for l in diff if l.startswith('- ')]
         
-        for line in added_lines:
-            self.line_counter.insert(line)
         for line in removed_lines:
             self.line_counter.delete(line)
+        for line in added_lines:
+            self.line_counter.insert(line)
 
         self.previous_state = new_content

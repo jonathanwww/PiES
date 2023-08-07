@@ -79,17 +79,17 @@ class SolverInterface(QObject):
         namespace = self.create_namespace()
         # prepare
         blocks = self.eqsys.blocking()
-        # grid = self.eqsys.grid.get_grid()  # Assuming grid is an instance of a class that has the get_grid() method
+        grid = self.eqsys.grid.get_grid()  # Assuming grid is an instance of a class that has the get_grid() method
         
-        for entry in range(1):
+        for entry in grid:
             # solving for these variable
             X = {var.name: None for var in self.eqsys.variables.values()}
-            # X.update(entry)  # add values from grid vars
+            X.update(entry)  # add values from grid vars
 
             for i, block in enumerate(blocks):
                 # Update messages
                 self.current_block_info = f"{i + 1}/{len(blocks)}"
-                # self.current_grid_info = f"{grid.index(entry) + 1}/{len(grid)}"
+                self.current_grid_info = f"{grid.index(entry) + 1}/{len(grid)}"
                 self.status('Solving')
                 
                 # get what we need for solving the block

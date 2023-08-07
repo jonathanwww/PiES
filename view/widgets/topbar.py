@@ -219,10 +219,10 @@ class TopBarWidget(QWidget):
         #     for key, value in warnings.items():
         #         self.eq_info_widget.warning_display.insertPlainText(f'{key}\n{value}\n\n')
         #         self.eq_info_widget.change_light_color('yellow')
-        grid_len = 1
-        self.refresh_solve_button(True, grid_len)
+        grid_len = len(self.eqsys.grid.get_grid())
+        self.refresh_solve_button(grid_len)
 
-    def refresh_solve_button(self, enabled: bool, runs: int):
+    def refresh_solve_button(self, runs: int):
         if runs == 1:
             message = "1 Run"
         else:

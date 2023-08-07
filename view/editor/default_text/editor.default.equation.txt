@@ -1,15 +1,5 @@
-text_param="add"
-r == 5 + t
-o == 6*t + u
-u == o*r+f()[0]
-t == u*o + test(o, u, text_param)
-y == 5 + w + k
-x == 6*w + z*e+a-e
-z == x*y - k+e+d-c
-w == z*x + test(x, z, text_param)
-k == 15*x+2*a
-a == 3*x + 2*y - z+k*4*w-e+y
-b == 4*w - k + e+np.cos(5)
-c == 2*a - 5*b + d++f()[1]
-d == y - 3*z + e*w+z*k-e
-e == a + b - 4*c + w
+a=[1,2]
+b=[3,4]
+c=['add', '']
+
+x==z+test(a,b,c)

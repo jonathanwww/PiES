@@ -50,7 +50,6 @@ class Parameter:
                  name: str,
                  tree: AST,
                  value_code: CodeType,
-                 # list: bool,
                  object_names: set[str], 
                  function_names: set[str],
                  unit: Unit = None):
@@ -58,16 +57,26 @@ class Parameter:
         self.name = name
         self.tree = tree
         self.code = value_code
-        # self.list = list
         self.objects = object_names
         self.functions = function_names
         self.unit = unit
-
+        
+        self._grid = False
+        
     def __repr__(self):
-        return f"Parameter(name={self.name}, tree=tree, code=rhs, objects={self.objects}, functions={self.functions}, unit={self.unit})"
+        return f"Parameter(name={self.name}, tree=tree, code=rhs, objects={self.objects}, " \
+               f"functions={self.functions}, unit={self.unit}, grid={self.grid})"
     
     def __str__(self):
         return f"{self.name}"
+    
+    @property
+    def grid(self):
+        return self._grid
+
+    @grid.setter
+    def grid(self, status: bool):
+        self._grid = status
 
 
 class Variable:

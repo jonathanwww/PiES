@@ -3,7 +3,7 @@ import networkx as nx
 from ast import AST
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 from pint import UnitRegistry
-from eqsys.util import Counter
+from eqsys.util import Counter, GridManager
 from eqsys.objects import Factory
 
 
@@ -75,7 +75,19 @@ class EquationManager(QObject):
         # all those which are in parameters or namespace
         for variable_name in object_names & (namespace_keys | parameter_keys):
             self._remove_variable(variable_name)
-    
+
+    def sync_parameter_types(self):
+        # todo: find a more efficient way
+        # todo: we need to have parameters in the namespace, they are first added in solve
+        for parameter in self.parameters.values():
+            parameter.grid = False
+            try:
+                rhs = eval(parameter.code, self.namespace)
+                if isinstance(rhs, list):
+                    parameter.grid = True
+            except Exception as e:
+                print(str(e))
+
     def increase_counters(self, object_names: set, function_names: set) -> None:
         for object_name in object_names:
             self.object_counter.insert(object_name)
@@ -122,12 +134,15 @@ class EquationSystem(QObject):
         # manages equations and objects in the equations
         self.eq_manager = EquationManager()
 
+        # manages the grid; list parameters
+        self.grid = GridManager()
+        
         # for accessing objects through equation system
         self.equations = self.eq_manager.equations
         self.variables = self.eq_manager.variables
         self.parameters = self.eq_manager.parameters
         self.functions = self.eq_manager.functions
-
+    
     @property
     def namespace(self):
         return self._namespace
@@ -139,9 +154,25 @@ class EquationSystem(QObject):
         self._namespace.update(value)
         self.eq_manager.namespace.clear()
         self.eq_manager.namespace.update(value)
-        self.eq_manager.sync_variables()
+        self._sync()
         self._on_change()
-    
+
+    def _sync(self):
+        """ we need to sync various stuff when updating parameters and namespace """
+        self.eq_manager.sync_variables()
+        self.eq_manager.sync_parameter_types()
+        # update the grid
+        self.grid.clear()
+        for parameter in self.parameters.values():
+            if parameter.grid:
+                parameter_name = parameter.name
+                values = eval(parameter.code, self.namespace)
+                self.grid.assign(parameter_name, values)
+        
+    def _on_change(self):
+        """ emits data_updated signal, validates eqsys and validate the list of eqs or all eqs if validate_all"""
+        self.data_changed.emit()
+        
     def insert_equation(self, equation: str, equation_tree: ast.Expression) -> None:
         """ an equation on the form lhs=rhs, the AST for that string"""
         equation_object = self.eq_manager.factory.create_equation(equation, equation_tree)
@@ -154,7 +185,7 @@ class EquationSystem(QObject):
         parameter = self.eq_manager.factory.create_parameter(parameter_name, parameter_tree)
         self.eq_manager.parameters[parameter_name] = parameter
         self.eq_manager.increase_counters(parameter.objects, parameter.functions)
-        self.eq_manager.sync_variables()
+        self._sync()
         self._on_change()
 
     def delete_equation(self, name: str) -> None:
@@ -167,13 +198,9 @@ class EquationSystem(QObject):
         object_names, function_names = self.eq_manager.parameters[name].objects, self.eq_manager.parameters[name].functions
         self.eq_manager.decrease_counters(object_names, function_names)
         del self.eq_manager.parameters[name]
-        self.eq_manager.sync_variables()
+        self._sync()
         self._on_change()
-
-    def _on_change(self):
-        """ emits data_updated signal, validates eqsys and validate the list of eqs or all eqs if validate_all"""
-        self.data_changed.emit()
-    
+        
     def blocking(self, return_graph=False):
         # Get eqs
         eqs = [eq for eq in self.equations.values()]
