@@ -46,7 +46,7 @@ class MainApp(QWidget):
         self._apply_settings()
         
         # load content in editor
-        self.eqsys_controller.lines_manager.multiple_update()
+        self.eqsys_controller.lines_manager.on_lines_changed()
         
     def update_settings(self):
         # Update your app's configs here
@@ -64,7 +64,7 @@ class MainApp(QWidget):
     def _setup_view(self):
         # todo: requires general configs
         self.view = MainWindow()
-        self.view.resize(800, 800)
+        self.view.resize(1200, 800)
 
         self.view.dock_manager = DockManager(self.view)
         self.view.menu_manager = MenuManager(self.view)
@@ -103,7 +103,7 @@ class MainApp(QWidget):
         self.namespace_widget = NamespaceWidget(self.model, self.namespace_edit, self.view)
         self.graph_widget = GraphWidget(self.model, self.view)
         self.plot_widget = InteractiveGraph(self.view)
-        self.python_widget = PythonWidget(self.model, self.python_edit, self.view)
+        self.python_widget = PythonWidget(self.model, self.results_manager, self.python_edit, self.view)
         self.results_widget = ResultsWidget(self.model, self.results_manager, self.view)
 
         # set widgets/editors to docks

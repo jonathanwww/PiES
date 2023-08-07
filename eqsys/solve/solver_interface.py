@@ -42,7 +42,7 @@ class SolverInterface(QObject):
         new_namespace = {}
         
         for name, parameter in self.eqsys.parameters.items():
-            new_namespace[name] = eval(parameter.value, self.eqsys.namespace)
+            new_namespace[name] = eval(parameter.code, self.eqsys.namespace)
         
         # namespace window overrides parameters currently
         new_namespace.update(self.eqsys.namespace)

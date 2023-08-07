@@ -9,11 +9,12 @@ import traceback
 # todo: add some success/failure indictation after run
 
 class PythonWidget(QtWidgets.QWidget):
-    def __init__(self, eqsys, python_editor, parent=None):
+    def __init__(self, eqsys, results, python_editor, parent=None):
         super().__init__(parent)
         self.view = parent
         
         self.eqsys = eqsys
+        self.results = results
         self.editor = python_editor
 
         self.run_button = QtWidgets.QPushButton('Run', self)
@@ -26,8 +27,9 @@ class PythonWidget(QtWidgets.QWidget):
 
     def run_code(self):
         code = self.editor.text()
-        # add eqsys object to namespace so we can manipulate it in py
-        namespace = {'EquationSystem': self.eqsys}
+        # add eqsys object and results object to namespace, so we can manipulate it in py
+        namespace = {'EqSys': self.eqsys, 'Results': self.results}
+        
 
         try:
             compiled_code = compile(code, '<string>', 'exec')

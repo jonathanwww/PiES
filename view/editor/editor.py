@@ -118,37 +118,38 @@ class BaseEditor(QsciScintilla):
         except Exception as ex:
             logging.exception(ex)
             self.clear()
-        
-    def keyPressEvent(self, event):
-        """
-        Auto completes quotes, parentheses, brackets and braces, and moves cursor into the middle 
-        """
-        key = event.key()
-
-        # Dictionary of keys and their corresponding closing characters
-        wrap_pairs = {
-            QtCore.Qt.Key.Key_QuoteDbl: '"',
-            QtCore.Qt.Key.Key_Apostrophe: "'",
-            QtCore.Qt.Key.Key_ParenLeft: ')'
-        }
-
-        if key in wrap_pairs:
-            selected_text = self.selectedText()
-
-            # Check if next character is whitespace, end of document, or closing bracket/parentheses/brace
-            pos = self.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
-            next_char = self.SendScintilla(QsciScintilla.SCI_GETCHARAT, pos)
-            next_is_empty_or_closing = next_char in (0, 32, 9, 10, 13, 41)  # 0 for end of document, 32 for ' ', 9 for '\t', 10 for '\n', 13 for '\r', for ')'
-
-            if selected_text:  # if there's a text selection
-                self.replaceSelectedText(f'{chr(key)}{selected_text}{wrap_pairs[key]}')
-                return
-            elif next_is_empty_or_closing:  # if the next character is a whitespace, end of document, or closing bracket/parentheses/brace
-                super().keyPressEvent(event)
-                self.insert(wrap_pairs[key])
-                return
-
-        super().keyPressEvent(event)
+    
+    # todo: interfers with parsing it seems
+    # def keyPressEvent(self, event):
+    #     """
+    #     Auto completes quotes, parentheses, brackets and braces, and moves cursor into the middle 
+    #     """
+    #     key = event.key()
+    # 
+    #     # Dictionary of keys and their corresponding closing characters
+    #     wrap_pairs = {
+    #         QtCore.Qt.Key.Key_QuoteDbl: '"',
+    #         QtCore.Qt.Key.Key_Apostrophe: "'",
+    #         QtCore.Qt.Key.Key_ParenLeft: ')'
+    #     }
+    # 
+    #     if key in wrap_pairs:
+    #         selected_text = self.selectedText()
+    # 
+    #         # Check if next character is whitespace, end of document, or closing bracket/parentheses/brace
+    #         pos = self.SendScintilla(QsciScintilla.SCI_GETCURRENTPOS)
+    #         next_char = self.SendScintilla(QsciScintilla.SCI_GETCHARAT, pos)
+    #         next_is_empty_or_closing = next_char in (0, 32, 9, 10, 13, 41)  # 0 for end of document, 32 for ' ', 9 for '\t', 10 for '\n', 13 for '\r', for ')'
+    # 
+    #         if selected_text:  # if there's a text selection
+    #             self.replaceSelectedText(f'{chr(key)}{selected_text}{wrap_pairs[key]}')
+    #             return
+    #         elif next_is_empty_or_closing:  # if the next character is a whitespace, end of document, or closing bracket/parentheses/brace
+    #             super().keyPressEvent(event)
+    #             self.insert(wrap_pairs[key])
+    #             return
+    # 
+    #     super().keyPressEvent(event)
     
     # def mouseMoveEvent(self, e):
     #     """
@@ -182,6 +183,7 @@ class PythonEditor(BaseEditor):
         self.lexer.setFont(self.font())
         
         # Styling
+        self.lexer.setPaper(QColor("#222"))
         self.lexer.setColor(QColor("darkgrey"), QsciLexerPython.Comment)
         self.lexer.setColor(QColor("orange"), QsciLexerPython.Keyword)
         self.lexer.setColor(QColor("yellow"), QsciLexerPython.FunctionMethodName)
@@ -206,6 +208,7 @@ class FunctionsEditor(BaseEditor):
         self.lexer.setFont(self.font())
 
         # Styling
+        self.lexer.setPaper(QColor("#222"))
         self.lexer.setColor(QColor("darkgrey"), QsciLexerPython.Comment)
         self.lexer.setColor(QColor("orange"), QsciLexerPython.Keyword)
         self.lexer.setColor(QColor("yellow"), QsciLexerPython.FunctionMethodName)
@@ -240,6 +243,7 @@ class EquationEditor(BaseEditor):
         self.lexer.setFont(self.font())
         
         # Styling
+        self.lexer.setPaper(QColor("#222"))
         self.lexer.setColor(QColor("darkgrey"), QsciLexerPython.Comment)
         self.lexer.setColor(QColor("orange"), QsciLexerPython.Keyword)
         self.lexer.setColor(QColor("yellow"), QsciLexerPython.FunctionMethodName)

@@ -1,6 +1,5 @@
 import ast
 import networkx as nx
-from types import CodeType
 from ast import AST
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 from pint import UnitRegistry
@@ -143,17 +142,17 @@ class EquationSystem(QObject):
         self.eq_manager.sync_variables()
         self._on_change()
     
-    def insert_equation(self, equation: str, tree: AST) -> None:
+    def insert_equation(self, equation: str, equation_tree: ast.Expression) -> None:
         """ an equation on the form lhs=rhs, the AST for that string"""
-        equation_object = self.eq_manager.factory.create_equation(equation, tree)
+        equation_object = self.eq_manager.factory.create_equation(equation, equation_tree)
         self.eq_manager.equations[equation] = equation_object
         self.eq_manager.increase_counters(equation_object.objects, equation_object.functions)
         self._on_change()
 
-    def insert_parameter(self, name: str, tree: AST) -> None:
-        """ name of the parameter and the AST for the parameter: param:=value """
-        parameter = self.eq_manager.factory.create_parameter(name, tree)
-        self.eq_manager.parameters[name] = parameter
+    def insert_parameter(self, parameter_name: str, parameter_tree: ast.Assign) -> None:
+        """ name of the parameter and the AST for value of the parameter: param=value """
+        parameter = self.eq_manager.factory.create_parameter(parameter_name, parameter_tree)
+        self.eq_manager.parameters[parameter_name] = parameter
         self.eq_manager.increase_counters(parameter.objects, parameter.functions)
         self.eq_manager.sync_variables()
         self._on_change()

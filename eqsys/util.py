@@ -51,9 +51,11 @@ class NameCollector(ast.NodeVisitor):
 
 
 class Counter(QObject):
+    # todo: check if we can optimize
     """ 
     Keeps a count of the number of times the name is inserted
-    Emits a signal when a new name is added or a name is removed
+    Emits a signal the first time a name is added
+    Emits a signal when an object name counter reaches 0 and removes that entry
     """
     name_added = pyqtSignal(str)
     name_removed = pyqtSignal(str)
@@ -61,6 +63,7 @@ class Counter(QObject):
     def __init__(self):
         super().__init__()
         self.counter = defaultdict(int)
+        self.objects = defaultdict()
 
     def _increase_counter(self, name: str):
         """ increases the counter by 1, or inserts if non-existing, since we have default dict """
@@ -69,17 +72,28 @@ class Counter(QObject):
             self.name_added.emit(name)
 
     def _decrease_counter(self, name: str):
+        # todo: bug can decrease key which does not exist, so it goes to negative
         """ decrease the counter by 1 and removes if counter reaches 0 """
         self.counter[name] -= 1
         if self.counter[name] == 0:
             del self.counter[name]
             self.name_removed.emit(name)
+            
+            # check if there is an associated object
+            if name in self.objects:
+                del self.objects[name]
 
-    def insert(self, name: str):
+    def insert(self, name: str, obj=None):
+        """ add an object to be assoicated with the name """
+        if obj:
+            self.objects[name] = obj
         self._increase_counter(name)
 
     def delete(self, name: str):
         self._decrease_counter(name)
+
+    def get_object(self, name: str):
+        return self.objects[name]
 
 
 class LRUCache(OrderedDict):

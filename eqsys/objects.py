@@ -1,6 +1,5 @@
 import ast
 import numpy as np
-from typing import Any
 from types import CodeType
 from PyQt6.QtCore import QObject
 from ast import AST
@@ -48,9 +47,9 @@ class Parameter:
     """
 
     def __init__(self, 
-                 name: str, 
+                 name: str,
                  tree: AST,
-                 value: AST,
+                 value_code: CodeType,
                  # list: bool,
                  object_names: set[str], 
                  function_names: set[str],
@@ -58,14 +57,14 @@ class Parameter:
         
         self.name = name
         self.tree = tree
-        self.value = value
+        self.code = value_code
         # self.list = list
         self.objects = object_names
         self.functions = function_names
         self.unit = unit
 
     def __repr__(self):
-        return f"Parameter(name={self.name}, tree=tree, value=rhs, objects={self.objects}, functions={self.functions}, unit={self.unit})"
+        return f"Parameter(name={self.name}, tree=tree, code=rhs, objects={self.objects}, functions={self.functions}, unit={self.unit})"
     
     def __str__(self):
         return f"{self.name}"
@@ -126,25 +125,24 @@ class Factory(QObject):
         self.collector = NameCollector()
         self.residual_transformer = CreateResidual()
 
-    def create_equation(self, equation: str, tree: AST) -> Equation:
-        """ tree must be mode='eval'"""
-        object_names, func_names = self.collector.get_names(tree)
-        residual_tree = self.residual_transformer.visit(tree)
+    def create_equation(self, equation: str, equation_tree: ast.Expression) -> Equation:
+        object_names, func_names = self.collector.get_names(equation_tree)
+        residual_tree = self.residual_transformer.visit(equation_tree)
         residual_code = compile(residual_tree, filename='<string>', mode='eval')
         return Equation(equation, residual_tree, residual_code, object_names, func_names)
 
-    def create_parameter(self, name: str, tree: AST) -> Parameter:
-        """ tree must be mode='exec'"""
-        object_names, func_names = self.collector.get_names(tree)
-        # extract and compile rhs
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assign):
-                rhs = ast.Expression(body=node.value)
-                compiled_rhs = compile(rhs, filename="", mode='eval')
+    def create_parameter(self, parameter_name: str, parameter_tree: ast.Assign) -> Parameter:
+        object_names, func_names = self.collector.get_names(parameter_tree)
+        
+        # extract the assignment value
+        rhs = ast.Expression(parameter_tree.value)
+        compiled_rhs = compile(rhs, filename="", mode='eval')
+        
+        return Parameter(parameter_name, parameter_tree, compiled_rhs, object_names, func_names)
+        
         # todo: we cannot do cache this way, since the objects will change, but the cache object will not
         # return self.parameter_cache.setdefault(name, Parameter(name, tree, compiled_rhs, object_names, func_names))
-        return Parameter(name, tree, compiled_rhs, object_names, func_names)
-
+        
     def create_variable(self, name: str) -> Variable:
         return self.variable_cache.setdefault(name, Variable(name))
 
