@@ -205,20 +205,13 @@ class TopBarWidget(QWidget):
             self.eq_info_widget.name_label.setText(f"Equation System DOF: {dof} (OD)")
         else:
             self.eq_info_widget.name_label.setText(f"Equation System DOF: {dof}")
+        
+        # set light color
+        if dof == 0:
+            self.eq_info_widget.change_light_color('green')
+        elif dof > 0 or dof < 0:  # possibly over/under determined
+            self.eq_info_widget.change_light_color('yellow')
 
-        # if len(error) != 0:  # add errors
-        #     self.eq_info_widget.change_light_color('red')
-        #     for key, value in error.items():
-        #         self.eq_info_widget.error_display.insertPlainText(f'{key}\n{value}\n\n')
-        # elif dof == 0:
-        #     self.eq_info_widget.change_light_color('green')
-        # elif dof > 0 or dof < 0:  # possibly over/under determined
-        #     self.eq_info_widget.change_light_color('yellow')
-        # 
-        # if len(warnings) != 0:  # add unit warnings
-        #     for key, value in warnings.items():
-        #         self.eq_info_widget.warning_display.insertPlainText(f'{key}\n{value}\n\n')
-        #         self.eq_info_widget.change_light_color('yellow')
         grid_len = len(self.eqsys.grid.get_grid())
         self.refresh_solve_button(grid_len)
 
